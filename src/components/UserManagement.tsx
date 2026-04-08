@@ -89,12 +89,12 @@ const UserManagement: React.FC = () => {
         setFilteredUsers(dataUsers);
         
         // Similar validación para roles y permisos...
-        const responseRoles = await fetch('http://farmacia.local:3000/api/Roles/ListarRoles');
+        const responseRoles = await fetch('http://localhost:5000/api/Roles/ListarRoles');
        
         const dataRoles = await responseRoles.json();
         setRoles(dataRoles);
   
-        const responsePermissions = await fetch('http://farmacia.local:3000/api/Permisos/ListarPermisos');
+        const responsePermissions = await fetch('http://localhost:5000/api/Permisos/ListarPermisos');
     
         const dataPermissions = await responsePermissions.json();
         setPermissions(dataPermissions);
@@ -161,7 +161,7 @@ const UserManagement: React.FC = () => {
   const handlePermissionsClick = async (userId: number) => {
     setSelectedUserId(userId);
     try {
-      const response = await fetch(`http://farmacia.local:3000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
+      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
       
       if (!response.ok) {
         throw new Error('Error al obtener los permisos del usuario');
@@ -239,8 +239,8 @@ const UserManagement: React.FC = () => {
 
     try {
       const url = editMode
-        ? `http://farmacia.local:3000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
-        : `http://farmacia.local:3000/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
+        ? `http://localhost:5000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
+        : `http://localhost:5000/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
 
       const response = await fetch(url, {
         method: editMode ? 'PUT' : 'POST',
@@ -264,7 +264,7 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Está seguro de eliminar este usuario?')) {
       try {
-        const response = await fetch(`http://farmacia.local:3000/api/Usuarios/${id}`, {
+        const response = await fetch(`http://localhost:5000/api/Usuarios/${id}`, {
           method: 'DELETE'
         });
 
