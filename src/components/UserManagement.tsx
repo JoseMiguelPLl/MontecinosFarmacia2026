@@ -338,8 +338,8 @@ const UserManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
-                    type="email"
-                    name="email"
+                    type="text"
+                    name="Email/Usuario"
                     value={formData.correo}
                     onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
                     placeholder="Ingrese Email"
