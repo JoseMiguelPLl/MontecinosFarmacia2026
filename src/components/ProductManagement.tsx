@@ -19,7 +19,7 @@ interface Product {
   precio: number;
   stock: number;
   concentracion: number;
-  casilla: number;
+  casilla: string;
   vencimiento: string;
   idpresentacion: number;
   idlaboratorio: number;
@@ -61,7 +61,7 @@ const initialProductState: Partial<Product> = {
   precio: 0,
   stock: 0,
   concentracion: 0,
-  casilla: 0,
+  casilla: '',
   vencimiento: '',
   idpresentacion: 0,
   idlaboratorio: 0,
@@ -202,13 +202,13 @@ const ProductManagement: React.FC = () => {
     try {
       const params = new URLSearchParams();
       params.append('id', editProducto.id.toString());
-      params.append('codigo', formData.codigo || '');
+      params.append('codigo', formData.codigo || 'S/D');
       params.append('nombre', formData.nombre || '');
       params.append('descripcion', formData.descripcion || '');
       params.append('precio', formData.precio?.toString() || '0');
       params.append('stock', formData.stock?.toString() || '0');
       params.append('concentracion', formData.concentracion?.toString() || '0');
-      params.append('casilla', formData.casilla?.toString() || '0');
+      params.append('casilla', formData.casilla || 'S/D');
       params.append('vencimiento', formData.vencimiento || '');
       params.append('idpresentacion', formData.idpresentacion?.toString() || '0');
       params.append('idlaboratorio', formData.idlaboratorio?.toString() || '0');
@@ -471,7 +471,7 @@ const ProductManagement: React.FC = () => {
                   <input  
                     type="text"
                     name="casilla"
-                    value={formData.casilla || 0}
+                    value={formData.casilla || 'S/D'}
                     onChange={handleInputChange}
                     className="form-input2"
                     placeholder="N"
