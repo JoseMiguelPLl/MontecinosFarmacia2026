@@ -143,18 +143,19 @@ function Modal({ isOpen, onClose, title, message, type }: ModalProps) {
 
 function Ventas() {
   const [usuarios, setUsuarios] = useState<Clientes[]>([]);
+  
+const hoy = new Date().toISOString().split("T")[0];
   const [producto, setProducto] = useState<Producto[]>([]);
   const [venta, setVenta] = useState<Venta[]>([]);
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
   const [Dventa, setDVenta] = useState<Detalle_Ventas[]>([]);
   const [addVenta, setAddVenta] = useState<Partial<Venta>>({
-    fecha: "",
+    fecha: hoy,
     total: 0,
     idusuario: 0,
     idcliente: 0,
     tipoPago:""
   });
-
   const [tipo, setTipos] = useState<Tipo[]>([]);
   const [presentacion, setPresentacion] = useState<Presentacion[]>([]);
   const [laboratorio, setLaboratorio] = useState<Laboratory[]>([]);
