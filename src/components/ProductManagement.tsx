@@ -25,7 +25,8 @@ interface Product {
   idlaboratorio: number;
   idtipo: number;
   eliminado?: boolean;
-  precio_compra:number
+  precio_compra:number;
+  lote:string
 }
 
 interface Tipo {
@@ -67,6 +68,7 @@ const initialProductState: Partial<Product> = {
   idlaboratorio: 0,
   idtipo: 0,
   precio_compra: 0,
+  lote:''
 };
 
 // Componente principal
@@ -159,14 +161,14 @@ const ProductManagement: React.FC = () => {
     // Validación de campos requeridos
     if (!formData.codigo || !formData.nombre || !formData.descripcion || !formData.precio || 
         !formData.stock || !formData.vencimiento || !formData.idtipo || 
-        !formData.idlaboratorio || !formData.idpresentacion|| !formData.precio_compra) {
+        !formData.idlaboratorio || !formData.idpresentacion|| !formData.precio_compra|| !formData.lote ) {
       showAlert("error", "Por favor complete todos los campos requeridos");
       return;
     }
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Productos/Crear?codigo=${formData.codigo}&nombre=${formData.nombre}&descripcion=${formData.descripcion}&precio=${formData.precio}&stock=${formData.stock}&vencimiento=${formData.vencimiento}&idtipo=${formData.idtipo}&idlaboratorio=${formData.idlaboratorio}&concentracion=${formData.concentracion}&casilla=${formData.casilla}&idpresentacion=${formData.idpresentacion}&precio_compra=${formData.precio_compra}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${formData.codigo}&nombre=${formData.nombre}&descripcion=${formData.descripcion}&precio=${formData.precio}&stock=${formData.stock}&vencimiento=${formData.vencimiento}&idtipo=${formData.idtipo}&idlaboratorio=${formData.idlaboratorio}&concentracion=${formData.concentracion}&casilla=${formData.casilla}&idpresentacion=${formData.idpresentacion}&precio_compra=${formData.precio_compra}&lote=${formData.lote}`,
         {
           method: "POST",
           headers: {
@@ -214,6 +216,8 @@ const ProductManagement: React.FC = () => {
       params.append('idlaboratorio', formData.idlaboratorio?.toString() || '0');
       params.append('idtipo', formData.idtipo?.toString() || '0');
        params.append('precio_compra', formData.precio_compra?.toString() || '0');
+       params.append('lote', formData.lote || '');
+
 
       const url = `http://localhost:5000/api/Productos/Actualizar?${params.toString()}`;
       
@@ -462,7 +466,21 @@ const ProductManagement: React.FC = () => {
                     required
                   />
                 </div>
-
+{/* Lote */}
+<div className="form-group space-y-2">
+  <label className="block text-sm font-medium text-black text-center">
+    Lote
+  </label>
+  <input
+    type="text"
+    name="lote"
+    value={formData.lote || ''}
+    onChange={handleInputChange}
+    className="form-input"
+    placeholder="Ingrese lote"
+    required
+  />
+</div>
                 {/* Casilla */}
                 <div className="form-group space-y-1">
                   <label className="block text-sm font-medium text-black text-center">
@@ -545,6 +563,7 @@ const ProductManagement: React.FC = () => {
     <thead className="bg-gray-800 text-white">
       <tr>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Cód.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Lote</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Nombre</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[15%]">Descripción</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Tipo</th>
@@ -572,8 +591,21 @@ const ProductManagement: React.FC = () => {
           const fullPres = `${presNombre} ${product.concentracion || ''} ${presCorto}`;
 
           return (
-            <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-              <td className="px-2 py-1.5 truncate border-r">{product.codigo}</td>
+            <tr key={product.id} className="hover:bg-gray-50 transition-colors"> 
+             {/* Celda Nombre con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{product.codigo}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {product.codigo}
+                </div>
+              </td>
+                {/* Celda Nombre con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{product.lote}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {product.lote}
+                </div>
+              </td>
               
               {/* Celda Nombre con Tooltip */}
               <td className="px-2 py-1.5 border-r relative group">
