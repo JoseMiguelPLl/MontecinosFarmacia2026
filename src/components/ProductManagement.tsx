@@ -419,7 +419,7 @@ const ProductManagement: React.FC = () => {
                 {/* Precio */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Precio 
+                    Precio Venta
                   </label>
                   <input
                     type="Text"
