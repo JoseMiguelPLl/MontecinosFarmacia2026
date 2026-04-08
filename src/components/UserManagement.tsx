@@ -302,11 +302,11 @@ const UserManagement: React.FC = () => {
               <table className="w-full border-collapse table-auto border shadow-sm">
                 <thead>
                   <tr className="bg-blue text-white">
-                    <th className="p-3 text-left">Nombre</th>
-                    <th className="p-3 text-left">Email</th>
-                    <th className="p-3 text-left">Usuario</th>
-                    <th className="p-3 text-left">Password</th>
-                    <th className="p-3 text-center">Acciones</th>
+                    <th className="p-3 text-left bg-blue">Nombre</th>
+                    <th className="p-3 text-left bg-blue">Email</th>
+                    <th className="p-3 text-left bg-blue">Usuario</th>
+                    <th className="p-3 text-left bg-blue">Password</th>
+                    <th className="p-3 text-center bg-blue">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
