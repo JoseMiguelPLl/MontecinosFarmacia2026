@@ -67,7 +67,7 @@ const UserManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  // --- NUEVOS ESTADOS DE SEGURIDAD ---
+  // --- LOGICA DE SEGURIDAD ESTATICA ---
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [pendingAction, setPendingAction] = useState<{ type: 'view' | 'edit', user: User | null }>({ type: 'view', user: null });
@@ -246,7 +246,7 @@ const UserManagement: React.FC = () => {
     setVisiblePasswords({});
   };
 
-  // --- LÓGICA DE SEGURIDAD PARA CONTRASEÑAS ---
+  // --- LÓGICA DE SEGURIDAD CON CÓDIGO ESTATICO "ADMIN" ---
   const requestSecurityAccess = (type: 'view' | 'edit', user: User) => {
     setPendingAction({ type, user });
     setAdminPass('');
@@ -254,8 +254,8 @@ const UserManagement: React.FC = () => {
   };
 
   const verifyAdmin = () => {
-    // AQUÍ VALIDACIÓN DE ADMIN (Puedes cambiar "admin123" por una variable o lógica de API)
-    if (adminPass === "admin123") {
+    // CODIGO ESTATICO REQUERIDO: "ADMIN"
+    if (adminPass === "ADMIN") {
       if (pendingAction.type === 'view' && pendingAction.user) {
         setVisiblePasswords(prev => ({ ...prev, [pendingAction.user!.id]: true }));
       } else if (pendingAction.type === 'edit' && pendingAction.user) {
@@ -265,7 +265,7 @@ const UserManagement: React.FC = () => {
       setShowVerifyModal(false);
       showAlert("success", "Acceso concedido");
     } else {
-      showAlert("error", "Contraseña de administrador incorrecta");
+      showAlert("error", "Código incorrecto");
     }
   };
 
@@ -331,7 +331,7 @@ const UserManagement: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder={editMode ? "Nueva contraseña" : "••••••••"}
                     readOnly={!editMode}
-                    className={`w-full p-2 border rounded ${!editMode ? 'bg-gray-100 italic' : 'bg-white font-bold'}`}
+                    className={`w-full p-2 border rounded ${!editMode ? 'bg-gray-100' : 'bg-white font-bold'}`}
                   />
                 </div>
               </div>
@@ -362,22 +362,19 @@ const UserManagement: React.FC = () => {
               <div className="search-container flex">
                 <input
                   type="text"
-                  placeholder="Buscar por nombre, email o usuario..."
+                  placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="p-2 border rounded-l"
                 />
-                <button
-                  style={{ background: 'blue' }}
-                  className="search-button text-white px-3 rounded-r flex items-center"
-                >
+                <button style={{ background: 'blue' }} className="text-white px-3 rounded-r">
                   <Search size={18} />
                 </button>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse table-auto">
+              <table className="w-full border-collapse table-auto text-sm">
                 <thead className="bg-blue-800 text-white">
                   <tr>
                     <th style={{ background: 'blue' }} className="p-3 text-left">Nombre</th>
@@ -389,91 +386,84 @@ const UserManagement: React.FC = () => {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={5} className="p-3 text-center">Cargando usuarios...</td></tr>
-                  ) : currentUsers.length === 0 ? (
-                    <tr><td colSpan={5} className="p-3 text-center">No se encontraron registros</td></tr>
-                  ) : (
-                    currentUsers.map(user => (
-                      <tr key={user.id} className="border-b hover:bg-gray-50">
-                        <td className="p-3">{user.nombre}</td>
-                        <td className="p-3">{user.correo}</td>
-                        <td className="p-3">{user.usuarioNombre}</td>
-                        <td className="p-3 font-mono">
-                          <div className="flex items-center gap-2">
-                            <span>{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
-                            <button
-                              type="button"
-                              onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({ ...p, [user.id]: false })) : requestSecurityAccess('view', user)}
-                              className="text-gray-500 hover:text-blue-600"
-                            >
-                              {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center flex justify-center gap-2">
+                    <tr><td colSpan={5} className="p-3 text-center">Cargando...</td></tr>
+                  ) : currentUsers.map(user => (
+                    <tr key={user.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3">{user.nombre}</td>
+                      <td className="p-3">{user.correo}</td>
+                      <td className="p-3">{user.usuarioNombre}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
                           <button
-                            style={{ background: 'blue' }}
-                            className="btn btn-warning text-white p-2 rounded"
-                            onClick={() => requestSecurityAccess('edit', user)}
+                            type="button"
+                            onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({ ...p, [user.id]: false })) : requestSecurityAccess('view', user)}
+                            className="text-gray-500"
                           >
-                            <Edit2 size={18} />
+                            {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
-                          <button
-                            className="btn btn-danger bg-red-600 text-white p-2 rounded"
-                            onClick={() => handleDelete(user.id)}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                          <button
-                            className="text-lg font-bold bg-blue text-white p-2 rounded"
-                            onClick={() => handlePermissionsClick(user.id)}
-                          >
-                            <FaKey size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-center flex justify-center gap-2">
+                        <button
+                          style={{ background: 'blue' }}
+                          className="text-white p-2 rounded"
+                          onClick={() => requestSecurityAccess('edit', user)}
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          className="bg-red-600 text-white p-2 rounded"
+                          onClick={() => handleDelete(user.id)}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        <button
+                          className="bg-blue text-white p-2 rounded"
+                          onClick={() => handlePermissionsClick(user.id)}
+                        >
+                          <FaKey size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
             <div className="pagination flex justify-between items-center mt-4">
-              <div className="pagination-info text-sm">
-                Mostrando registros del {(currentPage - 1) * itemsPerPage + 1} al {Math.min(currentPage * itemsPerPage, filteredUsers.length)}
-              </div>
-              <div className="pagination-buttons flex items-center">
-                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">Anterior</button>
-                <span className="mx-2">Página {currentPage} de {totalPages}</span>
-                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Siguiente</button>
+              <div className="text-sm">Página {currentPage} de {totalPages}</div>
+              <div className="flex gap-1">
+                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">Ant.</button>
+                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Sig.</button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* --- MODAL DE SEGURIDAD PARA ADMINISTRADOR --- */}
+        {/* MODAL DE SEGURIDAD - CODIGO: ADMIN */}
         {showVerifyModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
               <div className="flex items-center gap-3 mb-4 text-blue-700 font-bold border-b pb-2">
                 <Lock size={20} />
-                <span>Validación de Seguridad</span>
+                <span>Validación Requerida</span>
               </div>
-              <p className="text-sm text-gray-600 mb-4 italic">
-                Requiere contraseña de administrador para {pendingAction.type === 'view' ? 'ver la contraseña' : 'editar al usuario'}.
+              <p className="text-sm text-gray-600 mb-4">
+                Ingrese el código maestro para {pendingAction.type === 'view' ? 'visualizar' : 'editar'} datos sensibles.
               </p>
               <input
                 type="password"
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
-                placeholder="Password Administrador"
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold tracking-widest"
+                placeholder="CÓDIGO"
                 value={adminPass}
                 onChange={(e) => setAdminPass(e.target.value)}
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && verifyAdmin()}
               />
               <div className="flex gap-2 mt-6">
-                <button onClick={() => setShowVerifyModal(false)} className="flex-1 py-2 bg-gray-200 rounded font-bold">Cancelar</button>
-                <button onClick={verifyAdmin} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold shadow-lg hover:bg-blue-700">Verificar</button>
+                <button onClick={() => setShowVerifyModal(false)} className="flex-1 py-2 bg-gray-200 rounded font-bold">Cerrar</button>
+                <button onClick={verifyAdmin} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold shadow-lg">Entrar</button>
               </div>
             </div>
           </div>
@@ -483,24 +473,24 @@ const UserManagement: React.FC = () => {
         {showPermissionsModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-semibold mb-6 text-gray-800">Editar Permisos</h3>
+              <h3 className="text-xl font-semibold mb-6">Editar Permisos</h3>
               <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
-                {Object.entries(permissionsMap).map(([permissionName, permissionId]) => (
-                  <div key={permissionId} className="flex items-center">
+                {Object.entries(permissionsMap).map(([name, id]) => (
+                  <div key={id} className="flex items-center">
                     <input
                       type="checkbox"
-                      id={`permission-${permissionId}`}
-                      checked={selectedPermissions.includes(permissionId)}
-                      onChange={() => handlePermissionsChange(permissionName)}
+                      id={`p-${id}`}
+                      checked={selectedPermissions.includes(id)}
+                      onChange={() => handlePermissionsChange(name)}
                       className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <label htmlFor={`permission-${permissionId}`} className="ml-3 text-gray-700">{permissionName}</label>
+                    <label htmlFor={`p-${id}`} className="ml-3 text-gray-700">{name}</label>
                   </div>
                 ))}
               </div>
               <div className="flex justify-end space-x-3">
-                <button onClick={() => setShowPermissionsModal(false)} className="px-4 py-2 bg-red text-white rounded">Cancelar</button>
-                <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-blue text-white rounded">Guardar</button>
+                <button onClick={() => setShowPermissionsModal(false)} className="px-4 py-2 bg-red text-white rounded text-sm">Cerrar</button>
+                <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-blue text-white rounded text-sm font-bold">Guardar</button>
               </div>
             </div>
           </div>
