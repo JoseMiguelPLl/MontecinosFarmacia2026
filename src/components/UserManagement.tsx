@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Edit2, Search, Plus, RefreshCw, Eye, EyeOff, Lock, X } from 'lucide-react';
+import { Trash2, Edit2, Search, Eye, EyeOff, Lock, X, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import './UserManagement.css';
@@ -61,9 +61,7 @@ const UserManagement: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<{ type: 'view' | 'edit', user: User | null }>({ type: 'view', user: null });
   const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({});
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   useEffect(() => {
     const filtered = users.filter(user =>
@@ -86,11 +84,7 @@ const UserManagement: React.FC = () => {
       setRoles(await responseRoles.json());
       const responsePermissions = await fetch('http://localhost:5000/api/Permisos/ListarPermisos');
       setPermissions(await responsePermissions.json());
-    } catch (error) {
-      showAlert("error", "Error al conectar con el servidor");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (error) { showAlert("error", "Error de conexión"); } finally { setIsLoading(false); }
   };
 
   const handlePermissionsChange = (permission: string) => {
@@ -98,58 +92,44 @@ const UserManagement: React.FC = () => {
       'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4,
       'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9,
     };
-    const permissionNumber = permissionsMap[permission];
-    setSelectedPermissions(prev => prev.includes(permissionNumber) ? prev.filter(p => p !== permissionNumber) : [...prev, permissionNumber]);
+    const pNum = permissionsMap[permission];
+    setSelectedPermissions(prev => prev.includes(pNum) ? prev.filter(p => p !== pNum) : [...prev, pNum]);
   };
 
-  const handlePermissionsClick = async (userId: number) => {
-    setSelectedUserId(userId);
+  const handlePermissionsClick = async (uId: number) => {
+    setSelectedUserId(uId);
     try {
-      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
-      const userPermissions = await response.json();
-      setSelectedPermissions(userPermissions.map((p: any) => p.idpermiso));
+      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${uId}`);
+      const uPerms = await response.json();
+      setSelectedPermissions(uPerms.map((p: any) => p.idpermiso));
       setShowPermissionsModal(true);
-    } catch (error) {
-      showAlert('error', 'Error al cargar permisos');
-    }
+    } catch (error) { showAlert('error', 'Error al cargar permisos'); }
   };
 
   const handleUpdatePermissions = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/Crear`, {
+      const res = await fetch(`http://localhost:5000/api/Detalle_Permisos/Crear`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ IdUsuario: selectedUserId, Permisos: selectedPermissions })
       });
-      if (response.ok) {
-        showAlert('success', 'Permisos actualizados');
-        setShowPermissionsModal(false);
-      }
-    } catch (error) {
-      showAlert('error', 'Error al actualizar');
-    }
+      if (res.ok) { showAlert('success', 'Permisos actualizados'); setShowPermissionsModal(false); }
+    } catch (error) { showAlert('error', 'Error al actualizar'); }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nombre || !formData.correo || !formData.usuarioNombre || !formData.password) {
-      showAlert('error', 'Todos los campos son obligatorios');
+      showAlert('error', 'Campos obligatorios vacíos');
       return;
     }
     try {
       const url = editMode
         ? `http://localhost:5000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
         : `http://localhost:5000/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
-
-      const response = await fetch(url, { method: editMode ? 'PUT' : 'POST' });
-      if (response.ok) {
-        showAlert('success', `Usuario ${editMode ? 'actualizado' : 'creado'}`);
-        fetchUsers();
-        handleReset();
-      }
-    } catch (error) {
-      showAlert('error', 'Error en el servidor');
-    }
+      const res = await fetch(url, { method: editMode ? 'PUT' : 'POST' });
+      if (res.ok) { showAlert('success', `Usuario ${editMode ? 'modificado' : 'creado'}`); fetchUsers(); handleReset(); }
+    } catch (error) { showAlert('error', 'Error en el servidor'); }
   };
 
   const handleDelete = async (id: number) => {
@@ -172,7 +152,7 @@ const UserManagement: React.FC = () => {
 
   // --- SEGURIDAD ---
   const requestSecurityAccess = (type: 'view' | 'edit', user: User) => {
-    setAdminPass(''); // LIMPIAR SIEMPRE AL ABRIR
+    setAdminPass(''); // Siempre vacío al abrir
     setPendingAction({ type, user });
     setShowVerifyModal(true);
   };
@@ -188,7 +168,7 @@ const UserManagement: React.FC = () => {
       setShowVerifyModal(false);
       setAdminPass('');
     } else {
-      setAdminPass(''); // LIMPIAR SI FALLA
+      setAdminPass(''); // Vaciar si falla
       showAlert("error", "Código incorrecto");
     }
   };
@@ -210,19 +190,20 @@ const UserManagement: React.FC = () => {
           </CardHeader>
           <CardContent>
             {alert.show && (
-              <Alert className={alert.type === "error" ? "bg-red border-red mb-4" : "bg-green-100 border-green-600 mb-4"}>
+              <Alert className={alert.type === "error" ? "bg-red mb-4" : "bg-green-100 border-green-600 mb-4"}>
                 <AlertDescription className={alert.type === "error" ? "text-white font-bold" : ""}>{alert.message}</AlertDescription>
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border">
-              <input type="text" placeholder="Nombre" value={formData.nombre} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
-              <input type="text" placeholder="Email" value={formData.correo} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, correo: e.target.value})} />
-              <input type="text" placeholder="Usuario" value={formData.usuarioNombre} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, usuarioNombre: e.target.value})} />
+            <form onSubmit={handleSubmit} autoComplete="off" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border">
+              <input type="text" name="new-nombre" placeholder="Nombre" value={formData.nombre} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
+              <input type="text" name="new-email" placeholder="Email" value={formData.correo} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, correo: e.target.value})} />
+              <input type="text" name="new-user" placeholder="Usuario" value={formData.usuarioNombre} className="p-2 border rounded outline-none focus:border-red" onChange={(e)=>setFormData({...formData, usuarioNombre: e.target.value})} />
               
               <div className="relative">
                 <input 
                   type={editMode || formData.id === 0 ? "text" : "password"} 
+                  name="new-password"
                   placeholder="Contraseña" 
                   value={formData.password} 
                   onChange={(e)=>setFormData({...formData, password: e.target.value})}
@@ -233,10 +214,10 @@ const UserManagement: React.FC = () => {
               </div>
 
               <div className="col-span-full flex gap-2">
-                <button type="submit" className="bg-red text-white px-6 py-2 rounded font-bold hover:opacity-90 transition-colors">
+                <button type="submit" className="bg-red text-white px-6 py-2 rounded font-bold hover:opacity-90">
                   {editMode ? "GUARDAR CAMBIOS" : "REGISTRAR NUEVO"}
                 </button>
-                <button type="button" onClick={handleReset} className="bg-gray-500 text-white px-6 py-2 rounded font-bold hover:opacity-90 transition-colors">LIMPIAR</button>
+                <button type="button" onClick={handleReset} className="bg-gray-500 text-white px-6 py-2 rounded font-bold hover:opacity-90">LIMPIAR</button>
               </div>
             </form>
 
@@ -245,6 +226,8 @@ const UserManagement: React.FC = () => {
                 <Search size={20} className="text-red" />
                 <input 
                   type="text" 
+                  name="search-input-field"
+                  autoComplete="off"
                   placeholder="Buscar usuarios..." 
                   className="p-2 border rounded w-64 focus:border-red outline-none" 
                   value={searchTerm}
@@ -265,7 +248,7 @@ const UserManagement: React.FC = () => {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={4} className="p-3 text-center font-bold">Cargando datos...</td></tr>
+                    <tr><td colSpan={4} className="p-3 text-center font-bold">Cargando...</td></tr>
                   ) : currentUsers.map(user => (
                     <tr key={user.id} className="border-b hover:bg-gray-100 transition-colors">
                       <td className="p-3 font-medium">{user.nombre}</td>
@@ -273,11 +256,7 @@ const UserManagement: React.FC = () => {
                       <td className="p-3 font-mono">
                         <div className="flex items-center gap-2">
                           <span>{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
-                          <button 
-                            type="button"
-                            onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({...p, [user.id]: false})) : requestSecurityAccess('view', user)}
-                            className="text-red hover:scale-110 transition-transform"
-                          >
+                          <button type="button" onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({...p, [user.id]: false})) : requestSecurityAccess('view', user)} className="text-red">
                             {visiblePasswords[user.id] ? <EyeOff size={16}/> : <Eye size={16}/>}
                           </button>
                         </div>
@@ -299,11 +278,11 @@ const UserManagement: React.FC = () => {
         {showVerifyModal && (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100]">
             <div className="bg-white rounded-lg p-6 w-full max-w-sm border-t-8 border-red shadow-2xl">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-red">
-                <Lock /> VALIDACIÓN REQUERIDA
-              </h3>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-red"><Lock /> VALIDACIÓN REQUERIDA</h3>
               <input 
                 type="password" 
+                name="admin-verify-code"
+                autoComplete="new-password"
                 placeholder="CÓDIGO" 
                 className="w-full p-3 border-2 border-red rounded text-center text-xl font-bold tracking-widest outline-none focus:border-red"
                 value={adminPass}
@@ -322,17 +301,12 @@ const UserManagement: React.FC = () => {
         {/* Modal Permisos */}
         {showPermissionsModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md border-t-8 border-red shadow-xl">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md border-t-8 border-red">
               <h3 className="text-xl font-bold mb-4 border-b pb-2 text-red">PERMISOS</h3>
-              <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto mb-6 pr-2">
+              <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto mb-6">
                 {Object.keys({ 'Configuración':1, 'Usuarios':2, 'Clientes':3, 'Productos':4, 'Ventas':5, 'Historial de Ventas':6, 'Tipos':7, 'Presentación':8, 'Laboratorios':9 }).map(name => (
                   <label key={name} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedPermissions.includes(({ 'Configuración':1, 'Usuarios':2, 'Clientes':3, 'Productos':4, 'Ventas':5, 'Historial de Ventas':6, 'Tipos':7, 'Presentación':8, 'Laboratorios':9 } as any)[name])} 
-                      onChange={() => handlePermissionsChange(name)} 
-                      className="w-5 h-5 accent-red cursor-pointer" 
-                    />
+                    <input type="checkbox" checked={selectedPermissions.includes(({ 'Configuración':1, 'Usuarios':2, 'Clientes':3, 'Productos':4, 'Ventas':5, 'Historial de Ventas':6, 'Tipos':7, 'Presentación':8, 'Laboratorios':9 } as any)[name])} onChange={() => handlePermissionsChange(name)} className="w-5 h-5 accent-red" />
                     <span className="font-medium text-gray-700">{name}</span>
                   </label>
                 ))}
