@@ -129,12 +129,12 @@ function Modal({ isOpen, onClose, title, message, type }: ModalProps) {
         <h3 className="text-lg font-medium text-gray-900 text-center mb-2">{title}</h3>
         <p className="text-sm text-gray-500 text-center mb-6">{message}</p>
         <div className="flex justify-center">
-          <button
-            onClick={onClose}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${type === 'error' ? 'bg-red hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${type === 'error' ? 'focus:ring-red-500' : 'focus:ring-green-500'}`}
-          >
-            Entendido
-          </button>
+       <button 
+  onClick={onClose}
+  className="px-4 py-2 text-sm font-medium rounded-md bg-red hover:bg-red-700 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+>
+  Entendido
+</button>
         </div>
       </motion.div>
     </div>
