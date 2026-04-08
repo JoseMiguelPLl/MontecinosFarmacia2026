@@ -67,131 +67,81 @@ const UserManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  // --- LOGICA DE SEGURIDAD ESTATICA ---
+  // --- SEGURIDAD ---
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [pendingAction, setPendingAction] = useState<{ type: 'view' | 'edit', user: User | null }>({ type: 'view', user: null });
   const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const responseUsers = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
-        if (!responseUsers.ok) throw new Error(`HTTP error! status: ${responseUsers.status}`);
-        const dataUsers = await responseUsers.json();
-        if (!Array.isArray(dataUsers)) throw new Error('Los datos recibidos no tienen el formato esperado');
-        setUsers(dataUsers);
-        setFilteredUsers(dataUsers);
-
-        const responseRoles = await fetch('http://localhost:5000/api/Roles/ListarRoles');
-        const dataRoles = await responseRoles.json();
-        setRoles(dataRoles);
-
-        const responsePermissions = await fetch('http://localhost:5000/api/Permisos/ListarPermisos');
-        const dataPermissions = await responsePermissions.json();
-        setPermissions(dataPermissions);
-      } catch (error) {
-        showAlert("error", "Error en la solicitud al servidor");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+    fetchUsers();
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredUsers(users);
-    } else {
-      const filtered = users.filter(user =>
-        user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    }
+    const filtered = users.filter(user =>
+      user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredUsers(filtered);
     setCurrentPage(1);
   }, [searchTerm, users]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      const responseUsers = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
+      const dataUsers = await responseUsers.json();
+      setUsers(dataUsers);
+      setFilteredUsers(dataUsers);
 
-  const permissionsMap: { [key: string]: number } = {
-    'Configuración': 1,
-    'Usuarios': 2,
-    'Clientes': 3,
-    'Productos': 4,
-    'Ventas': 5,
-    'Historial de Ventas': 6,
-    'Tipos': 7,
-    'Presentación': 8,
-    'Laboratorios': 9,
+      const responseRoles = await fetch('http://localhost:5000/api/Roles/ListarRoles');
+      setRoles(await responseRoles.json());
+
+      const responsePermissions = await fetch('http://localhost:5000/api/Permisos/ListarPermisos');
+      setPermissions(await responsePermissions.json());
+    } catch (error) {
+      showAlert("error", "Error al conectar con el servidor");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePermissionsChange = (permission: string) => {
+    const permissionsMap: { [key: string]: number } = {
+      'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4,
+      'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9,
+    };
     const permissionNumber = permissionsMap[permission];
-    setSelectedPermissions(prevState => {
-      if (prevState.includes(permissionNumber)) {
-        return prevState.filter(p => p !== permissionNumber);
-      } else {
-        return [...prevState, permissionNumber];
-      }
-    });
+    setSelectedPermissions(prev => prev.includes(permissionNumber) ? prev.filter(p => p !== permissionNumber) : [...prev, permissionNumber]);
   };
 
   const handlePermissionsClick = async (userId: number) => {
     setSelectedUserId(userId);
     try {
       const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
-      if (!response.ok) throw new Error('Error al obtener los permisos del usuario');
       const userPermissions = await response.json();
-      const permissionIds = userPermissions.map((permission: any) => permission.idpermiso);
-      setSelectedPermissions(permissionIds);
+      setSelectedPermissions(userPermissions.map((p: any) => p.idpermiso));
       setShowPermissionsModal(true);
     } catch (error) {
-      showAlert('error', 'Error al cargar los permisos del usuario');
+      showAlert('error', 'Error al cargar permisos');
     }
   };
 
   const handleUpdatePermissions = async () => {
     try {
-      const requestBody = { IdUsuario: selectedUserId, Permisos: selectedPermissions };
       const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/Crear`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ IdUsuario: selectedUserId, Permisos: selectedPermissions })
       });
       if (response.ok) {
-        showAlert('success', 'Permisos actualizados exitosamente');
+        showAlert('success', 'Permisos actualizados');
         setShowPermissionsModal(false);
-      } else {
-        showAlert('error', 'Error al actualizar los permisos');
       }
     } catch (error) {
-      showAlert('error', 'Error en la solicitud al servidor');
+      showAlert('error', 'Error al actualizar');
     }
-  };
-
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const currentUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
-      if (!response.ok) throw new Error('Error al obtener los usuarios');
-      const data: User[] = await response.json();
-      setUsers(data);
-      setFilteredUsers(data);
-    } catch (error) {
-      showAlert('error', 'Error al cargar los usuarios');
-    }
-  };
-
-  const showAlert = (type: "error" | "success", message: string) => {
-    setAlert({ show: true, type, message });
-    setTimeout(() => setAlert({ show: false, type: "success", message: "" }), 3000);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -205,45 +155,33 @@ const UserManagement: React.FC = () => {
         ? `http://localhost:5000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
         : `http://localhost:5000/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
 
-      const response = await fetch(url, {
-        method: editMode ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
+      const response = await fetch(url, { method: editMode ? 'PUT' : 'POST' });
       if (response.ok) {
-        showAlert('success', `Usuario ${editMode ? 'modificado' : 'registrado'} exitosamente`);
+        showAlert('success', `Usuario ${editMode ? 'actualizado' : 'creado'}`);
         fetchUsers();
         handleReset();
-      } else {
-        showAlert('error', `Error al ${editMode ? 'modificar' : 'registrar'} el usuario`);
       }
     } catch (error) {
-      showAlert('error', 'Error en la solicitud al servidor');
+      showAlert('error', 'Error en el servidor');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este usuario?')) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/Usuarios/${id}`, { method: 'DELETE' });
-        if (response.ok) {
-          showAlert('success', 'Usuario eliminado exitosamente');
-          fetchUsers();
-        } else {
-          showAlert('error', 'Error al eliminar el usuario');
-        }
-      } catch (error) {
-        showAlert('error', 'Error en la solicitud al servidor');
-      }
+    if (window.confirm('¿Eliminar usuario?')) {
+      await fetch(`http://localhost:5000/api/Usuarios/${id}`, { method: 'DELETE' });
+      fetchUsers();
     }
   };
 
   const handleReset = () => {
-    setFormData({
-      id: 0, nombre: '', correo: '', usuarioNombre: '', password: '', estado: 'Activo', idrol: 1, permisos: []
-    });
+    setFormData({ id: 0, nombre: '', correo: '', usuarioNombre: '', password: '', estado: 'Activo', idrol: 1, permisos: [] });
     setEditMode(false);
     setVisiblePasswords({});
+  };
+
+  const showAlert = (type: "error" | "success", message: string) => {
+    setAlert({ show: true, type, message });
+    setTimeout(() => setAlert({ show: false, type: "success", message: "" }), 3000);
   };
 
   // --- LÓGICA DE SEGURIDAD CON CÓDIGO ESTATICO "ADMIN" ---
@@ -254,7 +192,6 @@ const UserManagement: React.FC = () => {
   };
 
   const verifyAdmin = () => {
-    // CODIGO ESTATICO REQUERIDO: "ADMIN"
     if (adminPass === "ADMIN") {
       if (pendingAction.type === 'view' && pendingAction.user) {
         setVisiblePasswords(prev => ({ ...prev, [pendingAction.user!.id]: true }));
@@ -263,234 +200,161 @@ const UserManagement: React.FC = () => {
         setFormData(pendingAction.user);
       }
       setShowVerifyModal(false);
-      showAlert("success", "Acceso concedido");
+      setAdminPass('');
     } else {
       showAlert("error", "Código incorrecto");
     }
   };
 
+  const currentUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
   return (
     <div className="flex h-screen">
       <NavBarRoot />
-      <div className="p-4 flex-1 overflow-auto w-1/2">
-        <div className="flex flex-col items-center justify-center bg-blue text-white -mr-6 -ml-6 -mt-8 mb-7">
-          <div className="text-center py-8">
-            <h2 className="text-3xl font-bold">Usuarios</h2>
-          </div>
+      <div className="p-4 flex-1 overflow-auto">
+        {/* Cabecera Roja */}
+        <div className="flex flex-col items-center justify-center bg-red-600 text-white -mr-4 -ml-4 -mt-4 mb-7 p-8 font-bold">
+          <h2 className="text-3xl">GESTIÓN DE USUARIOS</h2>
         </div>
-        <Card>
+
+        <Card className="border-t-4 border-red-600">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-primary">
-              Gestión de Usuarios - Farmacia
-            </CardTitle>
+            <CardTitle className="text-xl font-bold text-red-700">Panel Administrativo</CardTitle>
           </CardHeader>
           <CardContent>
             {alert.show && (
-              <Alert type={alert.type} className="mb-4">
+              <Alert className={alert.type === "error" ? "bg-red-100 border-red-600 mb-4" : "bg-green-100 border-green-600 mb-4"}>
                 <AlertDescription>{alert.message}</AlertDescription>
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Nombre</label>
-                  <input
-                    type="text"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    placeholder="Ingrese Nombre"
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input
-                    type="text"
-                    value={formData.correo}
-                    onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                    placeholder="Ingrese Email"
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Usuario</label>
-                  <input
-                    type="text"
-                    value={formData.usuarioNombre}
-                    onChange={(e) => setFormData({ ...formData, usuarioNombre: e.target.value })}
-                    placeholder="Ingrese Usuario"
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Contraseña</label>
-                  <input
-                    type={editMode ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder={editMode ? "Nueva contraseña" : "••••••••"}
-                    readOnly={!editMode}
-                    className={`w-full p-2 border rounded ${!editMode ? 'bg-gray-100' : 'bg-white font-bold'}`}
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border">
+              <input type="text" placeholder="Nombre" value={formData.nombre} className="p-2 border rounded outline-none focus:border-red-600" onChange={(e)=>setFormData({...formData, nombre: e.target.value})} />
+              <input type="text" placeholder="Email" value={formData.correo} className="p-2 border rounded outline-none focus:border-red-600" onChange={(e)=>setFormData({...formData, correo: e.target.value})} />
+              <input type="text" placeholder="Usuario" value={formData.usuarioNombre} className="p-2 border rounded outline-none focus:border-red-600" onChange={(e)=>setFormData({...formData, usuarioNombre: e.target.value})} />
+              
+              <div className="relative">
+                <input 
+                  type={editMode || formData.id === 0 ? "text" : "password"} 
+                  placeholder="Contraseña" 
+                  value={formData.password} 
+                  onChange={(e)=>setFormData({...formData, password: e.target.value})}
+                  className={`p-2 border rounded w-full outline-none ${editMode ? 'bg-white font-bold border-red-400' : formData.id === 0 ? 'bg-white' : 'bg-gray-200 opacity-60'}`}
+                  readOnly={!editMode && formData.id !== 0}
+                />
+                {!editMode && formData.id !== 0 && <Lock size={14} className="absolute right-2 top-3 text-gray-400" />}
               </div>
-              <div className="button-group mt-4 flex gap-2">
-                <button style={{ background: 'blue' }} type="submit" className="btn btn-primary text-white px-4 py-2 rounded">
-                  {editMode ? "Actualizar" : "Registrar"}
+
+              <div className="col-span-full flex gap-2">
+                <button type="submit" className="bg-red-600 text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition-colors">
+                  {editMode ? "GUARDAR CAMBIOS" : "REGISTRAR NUEVO"}
                 </button>
-                <button style={{ background: 'blue' }} type="button" onClick={handleReset} className="btn btn-success text-white px-4 py-2 rounded">
-                  Nuevo
-                </button>
+                <button type="button" onClick={handleReset} className="bg-gray-500 text-white px-6 py-2 rounded font-bold hover:bg-gray-600 transition-colors">LIMPIAR</button>
               </div>
             </form>
 
-            <div className="table-controls flex justify-between items-center mb-4">
+            <div className="flex justify-between mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm">Mostrar</span>
-                <select
-                  className="border rounded p-1"
-                  value={itemsPerPage}
-                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                >
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                </select>
-                <span className="text-sm">registros</span>
-              </div>
-              <div className="search-container flex">
-                <input
-                  type="text"
-                  placeholder="Buscar..."
+                <Search size={20} className="text-red-600" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar usuarios..." 
+                  className="p-2 border rounded w-64 focus:border-red-600 outline-none" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="p-2 border rounded-l"
                 />
-                <button style={{ background: 'blue' }} className="text-white px-3 rounded-r">
-                  <Search size={18} />
-                </button>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse table-auto text-sm">
-                <thead className="bg-blue-800 text-white">
-                  <tr>
-                    <th style={{ background: 'blue' }} className="p-3 text-left">Nombre</th>
-                    <th style={{ background: 'blue' }} className="p-3 text-left">Email</th>
-                    <th style={{ background: 'blue' }} className="p-3 text-left">Usuario</th>
-                    <th style={{ background: 'blue' }} className="p-3 text-left">Contraseña</th>
-                    <th style={{ background: 'blue' }} className="p-3 text-center">Acciones</th>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-red-600 text-white">
+                    <th className="p-3 text-left">Nombre</th>
+                    <th className="p-3 text-left">Usuario</th>
+                    <th className="p-3 text-left">Password</th>
+                    <th className="p-3 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={5} className="p-3 text-center">Cargando...</td></tr>
+                    <tr><td colSpan={4} className="p-3 text-center font-bold">Cargando datos...</td></tr>
                   ) : currentUsers.map(user => (
-                    <tr key={user.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{user.nombre}</td>
-                      <td className="p-3">{user.correo}</td>
-                      <td className="p-3">{user.usuarioNombre}</td>
-                      <td className="p-3">
+                    <tr key={user.id} className="border-b hover:bg-red-50 transition-colors">
+                      <td className="p-3 font-medium">{user.nombre}</td>
+                      <td className="p-3 text-gray-600">{user.usuarioNombre}</td>
+                      <td className="p-3 font-mono">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono">{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
-                          <button
+                          <span>{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
+                          <button 
                             type="button"
-                            onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({ ...p, [user.id]: false })) : requestSecurityAccess('view', user)}
-                            className="text-gray-500"
+                            onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({...p, [user.id]: false})) : requestSecurityAccess('view', user)}
+                            className="text-red-600 hover:scale-110 transition-transform"
                           >
-                            {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {visiblePasswords[user.id] ? <EyeOff size={16}/> : <Eye size={16}/>}
                           </button>
                         </div>
                       </td>
-                      <td className="p-3 text-center flex justify-center gap-2">
-                        <button
-                          style={{ background: 'blue' }}
-                          className="text-white p-2 rounded"
-                          onClick={() => requestSecurityAccess('edit', user)}
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          className="bg-red-600 text-white p-2 rounded"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                        <button
-                          className="bg-blue text-white p-2 rounded"
-                          onClick={() => handlePermissionsClick(user.id)}
-                        >
-                          <FaKey size={18} />
-                        </button>
+                      <td className="p-3 flex justify-center gap-2">
+                        <button className="bg-amber-500 text-white p-2 rounded hover:bg-amber-600" onClick={() => requestSecurityAccess('edit', user)} title="Editar"><Edit2 size={16}/></button>
+                        <button className="bg-red-600 text-white p-2 rounded hover:bg-red-700" onClick={() => handleDelete(user.id)} title="Eliminar"><Trash2 size={16}/></button>
+                        <button className="bg-red-800 text-white p-2 rounded hover:bg-red-900" onClick={() => handlePermissionsClick(user.id)} title="Permisos"><FaKey size={16}/></button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            <div className="pagination flex justify-between items-center mt-4">
-              <div className="text-sm">Página {currentPage} de {totalPages}</div>
-              <div className="flex gap-1">
-                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">Ant.</button>
-                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Sig.</button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* MODAL DE SEGURIDAD - CODIGO: ADMIN */}
+        {/* Modal Seguridad - BG-RED */}
         {showVerifyModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-              <div className="flex items-center gap-3 mb-4 text-blue-700 font-bold border-b pb-2">
-                <Lock size={20} />
-                <span>Validación Requerida</span>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Ingrese el código maestro para {pendingAction.type === 'view' ? 'visualizar' : 'editar'} datos sensibles.
-              </p>
-              <input
-                type="password"
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold tracking-widest"
-                placeholder="CÓDIGO"
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm border-t-8 border-red-600 shadow-2xl">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-red-600">
+                <Lock /> VALIDACIÓN REQUERIDA
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 font-medium italic">Ingrese el código de administrador para continuar.</p>
+              <input 
+                type="password" 
+                placeholder="CÓDIGO" 
+                className="w-full p-3 border-2 border-red-200 rounded text-center text-xl font-bold tracking-widest outline-none focus:border-red-600"
                 value={adminPass}
                 onChange={(e) => setAdminPass(e.target.value)}
-                autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && verifyAdmin()}
+                autoFocus
               />
               <div className="flex gap-2 mt-6">
-                <button onClick={() => setShowVerifyModal(false)} className="flex-1 py-2 bg-gray-200 rounded font-bold">Cerrar</button>
-                <button onClick={verifyAdmin} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold shadow-lg">Entrar</button>
+                <button onClick={() => setShowVerifyModal(false)} className="flex-1 py-2 bg-gray-200 rounded font-bold hover:bg-gray-300 transition-colors">CANCELAR</button>
+                <button onClick={verifyAdmin} className="flex-1 py-2 bg-red-600 text-white rounded font-bold shadow-lg hover:bg-red-700 transition-colors uppercase">Verificar</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* MODAL PERMISOS */}
+        {/* Modal Permisos */}
         {showPermissionsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-semibold mb-6">Editar Permisos</h3>
-              <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
-                {Object.entries(permissionsMap).map(([name, id]) => (
-                  <div key={id} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`p-${id}`}
-                      checked={selectedPermissions.includes(id)}
-                      onChange={() => handlePermissionsChange(name)}
-                      className="h-4 w-4 text-blue-600 rounded"
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md border-t-8 border-red-600 shadow-xl">
+              <h3 className="text-xl font-bold mb-4 border-b pb-2 text-red-600">PERMISOS DE USUARIO</h3>
+              <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto mb-6 pr-2">
+                {Object.keys({ 'Configuración':1, 'Usuarios':2, 'Clientes':3, 'Productos':4, 'Ventas':5, 'Historial de Ventas':6, 'Tipos':7, 'Presentación':8, 'Laboratorios':9 }).map(name => (
+                  <label key={name} className="flex items-center gap-3 p-2 hover:bg-red-50 rounded cursor-pointer transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedPermissions.includes(({ 'Configuración':1, 'Usuarios':2, 'Clientes':3, 'Productos':4, 'Ventas':5, 'Historial de Ventas':6, 'Tipos':7, 'Presentación':8, 'Laboratorios':9 } as any)[name])} 
+                      onChange={() => handlePermissionsChange(name)} 
+                      className="w-5 h-5 accent-red-600 cursor-pointer" 
                     />
-                    <label htmlFor={`p-${id}`} className="ml-3 text-gray-700">{name}</label>
-                  </div>
+                    <span className="font-medium text-gray-700">{name}</span>
+                  </label>
                 ))}
               </div>
-              <div className="flex justify-end space-x-3">
-                <button onClick={() => setShowPermissionsModal(false)} className="px-4 py-2 bg-red text-white rounded text-sm">Cerrar</button>
-                <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-blue text-white rounded text-sm font-bold">Guardar</button>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowPermissionsModal(false)} className="px-4 py-2 bg-gray-200 rounded font-bold">CERRAR</button>
+                <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700">GUARDAR</button>
               </div>
             </div>
           </div>
