@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Edit2, Search, Plus, RefreshCw } from 'lucide-react';
+import { Trash2, Edit2, Search, Plus, RefreshCw, Eye, EyeOff, Lock, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import './UserManagement.css';
@@ -63,79 +63,62 @@ const UserManagement: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showPermissionsModal, setShowPermissionsModal] = useState<boolean>(false);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  // Fetch data on component mount
+  // --- NUEVOS ESTADOS DE SEGURIDAD ---
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [adminPass, setAdminPass] = useState('');
+  const [pendingAction, setPendingAction] = useState<{ type: 'view' | 'edit', user: User | null }>({ type: 'view', user: null });
+  const [visiblePasswords, setVisiblePasswords] = useState<{ [key: number]: boolean }>({});
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const responseUsers = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
-        
-        if (!responseUsers.ok) {
-          throw new Error(`HTTP error! status: ${responseUsers.status}`);
-        }
-        
+        if (!responseUsers.ok) throw new Error(`HTTP error! status: ${responseUsers.status}`);
         const dataUsers = await responseUsers.json();
-        
-        // Verificar que dataUsers es un array
-        if (!Array.isArray(dataUsers)) {
-          throw new Error('Los datos recibidos no tienen el formato esperado');
-        }
-        
+        if (!Array.isArray(dataUsers)) throw new Error('Los datos recibidos no tienen el formato esperado');
         setUsers(dataUsers);
         setFilteredUsers(dataUsers);
-        
-        // Similar validación para roles y permisos...
+
         const responseRoles = await fetch('http://localhost:5000/api/Roles/ListarRoles');
-       
         const dataRoles = await responseRoles.json();
         setRoles(dataRoles);
-  
+
         const responsePermissions = await fetch('http://localhost:5000/api/Permisos/ListarPermisos');
-    
         const dataPermissions = await responsePermissions.json();
         setPermissions(dataPermissions);
-  
       } catch (error) {
         showAlert("error", "Error en la solicitud al servidor");
       } finally {
         setIsLoading(false);
       }
     };
-  
     fetchData();
   }, []);
 
-  // Filtrar usuarios cuando cambia el término de búsqueda
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredUsers(users);
     } else {
-      const filtered = users.filter(user => 
+      const filtered = users.filter(user =>
         user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredUsers(filtered);
     }
-    setCurrentPage(1); // Resetear a la primera página al buscar
+    setCurrentPage(1);
   }, [searchTerm, users]);
-
-  // Llenar formulario al editar usuario
-  useEffect(() => {
-    if (editMode && formData.id) {
-      setFormData(formData);
-    }
-  }, [editMode, formData]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const permissionsMap = {
+  const permissionsMap: { [key: string]: number } = {
     'Configuración': 1,
     'Usuarios': 2,
     'Clientes': 3,
@@ -162,46 +145,31 @@ const UserManagement: React.FC = () => {
     setSelectedUserId(userId);
     try {
       const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
-      
-      if (!response.ok) {
-        throw new Error('Error al obtener los permisos del usuario');
-      }
-
+      if (!response.ok) throw new Error('Error al obtener los permisos del usuario');
       const userPermissions = await response.json();
-      const permissionIds = userPermissions.map(permission => permission.idpermiso);
+      const permissionIds = userPermissions.map((permission: any) => permission.idpermiso);
       setSelectedPermissions(permissionIds);
       setShowPermissionsModal(true);
     } catch (error) {
-      console.error('Error al cargar los permisos del usuario:', error);
       showAlert('error', 'Error al cargar los permisos del usuario');
     }
   };
 
   const handleUpdatePermissions = async () => {
     try {
-      const requestBody = {
-        IdUsuario: selectedUserId,
-        Permisos: selectedPermissions
-      };
-
+      const requestBody = { IdUsuario: selectedUserId, Permisos: selectedPermissions };
       const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/Crear`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
-
       if (response.ok) {
         showAlert('success', 'Permisos actualizados exitosamente');
         setShowPermissionsModal(false);
       } else {
-        const errorData = await response.json();
-        console.error("Error del backend:", errorData);
         showAlert('error', 'Error al actualizar los permisos');
       }
     } catch (error) {
-      console.error('Error en la solicitud al servidor:', error);
       showAlert('error', 'Error en la solicitud al servidor');
     }
   };
@@ -212,14 +180,11 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
-      if (!response.ok) {
-        throw new Error('Error al obtener los usuarios');
-      }
+      if (!response.ok) throw new Error('Error al obtener los usuarios');
       const data: User[] = await response.json();
       setUsers(data);
       setFilteredUsers(data);
     } catch (error) {
-      console.error('Error al cargar los usuarios:', error);
       showAlert('error', 'Error al cargar los usuarios');
     }
   };
@@ -231,12 +196,10 @@ const UserManagement: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!formData.nombre || !formData.correo || !formData.usuarioNombre || !formData.password) {
       showAlert('error', 'Todos los campos son obligatorios');
       return;
     }
-
     try {
       const url = editMode
         ? `http://localhost:5000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
@@ -244,9 +207,7 @@ const UserManagement: React.FC = () => {
 
       const response = await fetch(url, {
         method: editMode ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (response.ok) {
@@ -264,10 +225,7 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Está seguro de eliminar este usuario?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/Usuarios/${id}`, {
-          method: 'DELETE'
-        });
-
+        const response = await fetch(`http://localhost:5000/api/Usuarios/${id}`, { method: 'DELETE' });
         if (response.ok) {
           showAlert('success', 'Usuario eliminado exitosamente');
           fetchUsers();
@@ -282,22 +240,33 @@ const UserManagement: React.FC = () => {
 
   const handleReset = () => {
     setFormData({
-      id: 0,
-      nombre: '',
-      correo: '',
-      usuarioNombre: '',
-      password: '',
-      estado: 'Activo',
-      idrol: 1,
-      permisos: []
+      id: 0, nombre: '', correo: '', usuarioNombre: '', password: '', estado: 'Activo', idrol: 1, permisos: []
     });
     setEditMode(false);
+    setVisiblePasswords({});
   };
 
-  const handleSearch = () => {
-    // La búsqueda se maneja automáticamente con el useEffect que observa searchTerm
-    // Esta función es para mantener la estructura del botón de búsqueda
-    console.log("Búsqueda ejecutada");
+  // --- LÓGICA DE SEGURIDAD PARA CONTRASEÑAS ---
+  const requestSecurityAccess = (type: 'view' | 'edit', user: User) => {
+    setPendingAction({ type, user });
+    setAdminPass('');
+    setShowVerifyModal(true);
+  };
+
+  const verifyAdmin = () => {
+    // AQUÍ VALIDACIÓN DE ADMIN (Puedes cambiar "admin123" por una variable o lógica de API)
+    if (adminPass === "admin123") {
+      if (pendingAction.type === 'view' && pendingAction.user) {
+        setVisiblePasswords(prev => ({ ...prev, [pendingAction.user!.id]: true }));
+      } else if (pendingAction.type === 'edit' && pendingAction.user) {
+        setEditMode(true);
+        setFormData(pendingAction.user);
+      }
+      setShowVerifyModal(false);
+      showAlert("success", "Acceso concedido");
+    } else {
+      showAlert("error", "Contraseña de administrador incorrecta");
+    }
   };
 
   return (
@@ -328,7 +297,6 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-medium mb-1">Nombre</label>
                   <input
                     type="text"
-                    name="nombre"
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     placeholder="Ingrese Nombre"
@@ -339,7 +307,6 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
                     type="text"
-                    name="Email/Usuario"
                     value={formData.correo}
                     onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
                     placeholder="Ingrese Email"
@@ -350,7 +317,6 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-medium mb-1">Usuario</label>
                   <input
                     type="text"
-                    name="usuario"
                     value={formData.usuarioNombre}
                     onChange={(e) => setFormData({ ...formData, usuarioNombre: e.target.value })}
                     placeholder="Ingrese Usuario"
@@ -360,20 +326,20 @@ const UserManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Contraseña</label>
                   <input
-                    type="password"
-                    name="contrasena"
+                    type={editMode ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Ingrese Contraseña"
-                    className="w-full p-2 border rounded"
+                    placeholder={editMode ? "Nueva contraseña" : "••••••••"}
+                    readOnly={!editMode}
+                    className={`w-full p-2 border rounded ${!editMode ? 'bg-gray-100 italic' : 'bg-white font-bold'}`}
                   />
                 </div>
               </div>
               <div className="button-group mt-4 flex gap-2">
-                <button style={{background:'blue'}} type="submit" className="btn btn-primary text-white px-4 py-2 rounded">
+                <button style={{ background: 'blue' }} type="submit" className="btn btn-primary text-white px-4 py-2 rounded">
                   {editMode ? "Actualizar" : "Registrar"}
                 </button>
-                <button style={{background:'blue'}} type="button" onClick={handleReset} className="btn btn-success text-white px-4 py-2 rounded">
+                <button style={{ background: 'blue' }} type="button" onClick={handleReset} className="btn btn-success text-white px-4 py-2 rounded">
                   Nuevo
                 </button>
               </div>
@@ -382,8 +348,8 @@ const UserManagement: React.FC = () => {
             <div className="table-controls flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm">Mostrar</span>
-                <select 
-                  className="border rounded p-1" 
+                <select
+                  className="border rounded p-1"
                   value={itemsPerPage}
                   onChange={(e) => setItemsPerPage(Number(e.target.value))}
                 >
@@ -396,61 +362,64 @@ const UserManagement: React.FC = () => {
               <div className="search-container flex">
                 <input
                   type="text"
-                  className=""
                   placeholder="Buscar por nombre, email o usuario..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  className="p-2 border rounded-l"
                 />
-                <button 
-                  style={{background:'blue'}} 
+                <button
+                  style={{ background: 'blue' }}
                   className="search-button text-white px-3 rounded-r flex items-center"
-                  onClick={handleSearch}
                 >
                   <Search size={18} />
                 </button>
               </div>
             </div>
-                
+
             <div className="overflow-x-auto">
               <table className="w-full border-collapse table-auto">
                 <thead className="bg-blue-800 text-white">
                   <tr>
-                    <th style={{background:'blue'}} className="p-3 text-left">Nombre</th>
-                    <th style={{background:'blue'}} className="p-3 text-left">Email</th>
-                    <th style={{background:'blue'}} className="p-3 text-left">Usuario</th>
-                    <th style={{background:'blue'}} className="p-3 text-center">Acciones</th>
+                    <th style={{ background: 'blue' }} className="p-3 text-left">Nombre</th>
+                    <th style={{ background: 'blue' }} className="p-3 text-left">Email</th>
+                    <th style={{ background: 'blue' }} className="p-3 text-left">Usuario</th>
+                    <th style={{ background: 'blue' }} className="p-3 text-left">Contraseña</th>
+                    <th style={{ background: 'blue' }} className="p-3 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={4} className="p-3 text-center">Cargando usuarios...</td>
-                    </tr>
+                    <tr><td colSpan={5} className="p-3 text-center">Cargando usuarios...</td></tr>
                   ) : currentUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="p-3 text-center">
-                        {searchTerm ? 'No se encontraron usuarios que coincidan con la búsqueda' : 'No hay usuarios registrados'}
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} className="p-3 text-center">No se encontraron registros</td></tr>
                   ) : (
                     currentUsers.map(user => (
                       <tr key={user.id} className="border-b hover:bg-gray-50">
                         <td className="p-3">{user.nombre}</td>
                         <td className="p-3">{user.correo}</td>
                         <td className="p-3">{user.usuarioNombre}</td>
+                        <td className="p-3 font-mono">
+                          <div className="flex items-center gap-2">
+                            <span>{visiblePasswords[user.id] ? user.password : "••••••••"}</span>
+                            <button
+                              type="button"
+                              onClick={() => visiblePasswords[user.id] ? setVisiblePasswords(p => ({ ...p, [user.id]: false })) : requestSecurityAccess('view', user)}
+                              className="text-gray-500 hover:text-blue-600"
+                            >
+                              {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </td>
                         <td className="p-3 text-center flex justify-center gap-2">
-                          <button 
-                            style={{background:'blue'}} 
-                            className="btn btn-warning text-white p-2 rounded" 
-                            onClick={() => {
-                              setEditMode(true);
-                              setFormData(user);
-                            }}
+                          <button
+                            style={{ background: 'blue' }}
+                            className="btn btn-warning text-white p-2 rounded"
+                            onClick={() => requestSecurityAccess('edit', user)}
                           >
                             <Edit2 size={18} />
                           </button>
-                          <button 
-                            className="btn btn-danger bg-red-600 text-white p-2 rounded" 
+                          <button
+                            className="btn btn-danger bg-red-600 text-white p-2 rounded"
                             onClick={() => handleDelete(user.id)}
                           >
                             <Trash2 size={18} />
@@ -471,34 +440,50 @@ const UserManagement: React.FC = () => {
 
             <div className="pagination flex justify-between items-center mt-4">
               <div className="pagination-info text-sm">
-                Mostrando registros del {(currentPage - 1) * itemsPerPage + 1} al {Math.min(currentPage * itemsPerPage, filteredUsers.length)} de un total de {filteredUsers.length} registros
+                Mostrando registros del {(currentPage - 1) * itemsPerPage + 1} al {Math.min(currentPage * itemsPerPage, filteredUsers.length)}
               </div>
               <div className="pagination-buttons flex items-center">
-                <button 
-                  onClick={() => handlePageChange(currentPage - 1)} 
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Anterior
-                </button>
+                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">Anterior</button>
                 <span className="mx-2">Página {currentPage} de {totalPages}</span>
-                <button 
-                  onClick={() => handlePageChange(currentPage + 1)} 
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
+                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Siguiente</button>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
+        {/* --- MODAL DE SEGURIDAD PARA ADMINISTRADOR --- */}
+        {showVerifyModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+              <div className="flex items-center gap-3 mb-4 text-blue-700 font-bold border-b pb-2">
+                <Lock size={20} />
+                <span>Validación de Seguridad</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-4 italic">
+                Requiere contraseña de administrador para {pendingAction.type === 'view' ? 'ver la contraseña' : 'editar al usuario'}.
+              </p>
+              <input
+                type="password"
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                placeholder="Password Administrador"
+                value={adminPass}
+                onChange={(e) => setAdminPass(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && verifyAdmin()}
+              />
+              <div className="flex gap-2 mt-6">
+                <button onClick={() => setShowVerifyModal(false)} className="flex-1 py-2 bg-gray-200 rounded font-bold">Cancelar</button>
+                <button onClick={verifyAdmin} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold shadow-lg hover:bg-blue-700">Verificar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PERMISOS */}
         {showPermissionsModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
               <h3 className="text-xl font-semibold mb-6 text-gray-800">Editar Permisos</h3>
-              
               <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
                 {Object.entries(permissionsMap).map(([permissionName, permissionId]) => (
                   <div key={permissionId} className="flex items-center">
@@ -507,31 +492,15 @@ const UserManagement: React.FC = () => {
                       id={`permission-${permissionId}`}
                       checked={selectedPermissions.includes(permissionId)}
                       onChange={() => handlePermissionsChange(permissionName)}
-                      className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                      className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <label htmlFor={`permission-${permissionId}`} className="ml-3 text-gray-700">
-                      {permissionName}
-                    </label>
+                    <label htmlFor={`permission-${permissionId}`} className="ml-3 text-gray-700">{permissionName}</label>
                   </div>
                 ))}
               </div>
-              
               <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowPermissionsModal(false);
-                    setSelectedPermissions([]);
-                  }}
-                  className="px-4 py-2 bg-red text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleUpdatePermissions}
-                  className="px-4 py-2 bg-blue text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  Guardar Cambios
-                </button>
+                <button onClick={() => setShowPermissionsModal(false)} className="px-4 py-2 bg-red text-white rounded">Cancelar</button>
+                <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-blue text-white rounded">Guardar</button>
               </div>
             </div>
           </div>
