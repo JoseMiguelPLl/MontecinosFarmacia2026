@@ -191,7 +191,7 @@ const LaboratoryManagement: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-bold text-primary">
-                Gestión de Laboratorios/ Distribuidor
+                Gestión de Laboratorios/Distribuidor
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -289,7 +289,7 @@ const LaboratoryManagement: React.FC = () => {
                   <thead className="bg-gray-100">
                     <tr>
                       <th style={{background:'blue'}} className="p-3 text-left">Nombre</th>
-                      <th style={{background:'blue'}} className="p-3 text-left">Dirección</th>
+                      <th style={{background:'blue'}} className="p-3 text-left">Dirección/Celular</th>
                       <th style={{background:'blue'}} className="p-3 text-center">Acciones</th>
                     </tr>
                   </thead>
