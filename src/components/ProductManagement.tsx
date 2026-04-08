@@ -91,10 +91,10 @@ const ProductManagement: React.FC = () => {
     const fetchData = async () => {
       try {
         const [productsRes, tiposRes, laboratoriosRes, presentacionRes] = await Promise.all([
-          fetch("https://farmaciamontecinoweb.onrender.com/api/Productos/listarProductosConMenorStock"),
-          fetch("https://farmaciamontecinoweb.onrender.com/api/Tipos/ListarTiposActivos"),
-          fetch("https://farmaciamontecinoweb.onrender.com/api/Laboratorios/ListarLaboratoriosActivos"),
-          fetch("https://farmaciamontecinoweb.onrender.com/api/Presentaciones/ListarPresentacionesActivos")
+          fetch("http://localhost:5000/api/Productos/listarProductosConMenorStock"),
+          fetch("http://localhost:5000/api/Tipos/ListarTiposActivos"),
+          fetch("http://localhost:5000/api/Laboratorios/ListarLaboratoriosActivos"),
+          fetch("http://localhost:5000/api/Presentaciones/ListarPresentacionesActivos")
         ]);
 
         const [dataProductos, dataTipos, dataLaboratorios, dataPresentacion] = await Promise.all([
@@ -137,7 +137,7 @@ const ProductManagement: React.FC = () => {
   // Manejar eliminación de producto
   const handleEliminar = async (id: number) => {
     try {
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Productos/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/Productos/${id}`, {
         method: 'DELETE',
       });
 
@@ -166,7 +166,7 @@ const ProductManagement: React.FC = () => {
 
     try {
       const response = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Productos/Crear?codigo=${formData.codigo}&nombre=${formData.nombre}&descripcion=${formData.descripcion}&precio=${formData.precio}&stock=${formData.stock}&vencimiento=${formData.vencimiento}&idtipo=${formData.idtipo}&idlaboratorio=${formData.idlaboratorio}&concentracion=${formData.concentracion}&casilla=${formData.casilla}&idpresentacion=${formData.idpresentacion}&precio_compra=${formData.precio_compra}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${formData.codigo}&nombre=${formData.nombre}&descripcion=${formData.descripcion}&precio=${formData.precio}&stock=${formData.stock}&vencimiento=${formData.vencimiento}&idtipo=${formData.idtipo}&idlaboratorio=${formData.idlaboratorio}&concentracion=${formData.concentracion}&casilla=${formData.casilla}&idpresentacion=${formData.idpresentacion}&precio_compra=${formData.precio_compra}`,
         {
           method: "POST",
           headers: {
@@ -215,7 +215,7 @@ const ProductManagement: React.FC = () => {
       params.append('idtipo', formData.idtipo?.toString() || '0');
        params.append('precio_compra', formData.precio_compra?.toString() || '0');
 
-      const url = `https://farmaciamontecinoweb.onrender.com/api/Productos/Actualizar?${params.toString()}`;
+      const url = `http://localhost:5000/api/Productos/Actualizar?${params.toString()}`;
       
       const response = await fetch(url, {
         method: "PUT",
@@ -540,71 +540,107 @@ const ProductManagement: React.FC = () => {
                 </button>
               </div>
               
-              <table className="w-full border-collapse table-auto">
-                <thead className="bg-gray-800 text-white">
-                  <tr>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Código</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Nombre</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Descripción</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Tipo</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Presentación</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Laboratorio</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Precio Compra</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Precio</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Stock</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Casilla</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Fecha Venc.</th>
-                    <th style={{background:'blue'}} className="px-4 py-2 text-left">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProductos.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="text-center py-4">
-                        {searchTerm ? "No se encontraron productos que coincidan con la búsqueda" : "No hay productos registrados"}
-                      </td>
-                    </tr>
-                  ) : (
-                    currentProducts.map((product) => {
-                      const tipoNombre = tipo.find((tp) => tp.id === product.idtipo)?.nombre || "Desconocido";
-                      const laboratorioNombre = laboratorio.find((lab) => lab.id === product.idlaboratorio)?.laboratorioNombre || "Desconocido";
-                      const presentacionNombre = presentacion.find((pre) => pre.id === product.idpresentacion)?.nombreCorto || "Desconocido";
+             <div className="rounded-lg border overflow-hidden">
+  <table className="w-full text-xs table-fixed"> {/* table-fixed es clave para que no crezca */}
+    <thead className="bg-gray-800 text-white">
+      <tr>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Cód.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Nombre</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[15%]">Descripción</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Tipo</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Present.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Lab.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[7%]">P. Compra</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[7%]">Precio</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[6%]">Stock</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[5%]">Cas.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[8%]">Venc.</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-center w-[10%]">Acciones</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-gray-200">
+      {filteredProductos.length === 0 ? (
+        <tr>
+          <td colSpan={12} className="text-center py-4">No hay resultados</td>
+        </tr>
+      ) : (
+        currentProducts.map((product) => {
+          const tipoNombre = tipo.find((tp) => tp.id === product.idtipo)?.nombre || "N/A";
+          const labNombre = laboratorio.find((lab) => lab.id === product.idlaboratorio)?.laboratorioNombre || "N/A";
+          const presNombre = presentacion.find((pre) => pre.id === product.idpresentacion)?.nombre || "";
+          const presCorto = presentacion.find((pre) => pre.id === product.idpresentacion)?.nombreCorto || "";
+          const fullPres = `${presNombre} ${product.concentracion || ''} ${presCorto}`;
 
-                      return (
-                        <tr key={product.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 border">{product.codigo}</td>
-                          <td className="px-4 py-2 border">{product.nombre}</td>
-                          <td className="px-4 py-2 border">{product.descripcion}</td>
-                          <td className="px-4 py-2 border">{tipoNombre}</td>
-                          <td className="px-4 py-2 border">{product.concentracion && `${product.concentracion} ${presentacionNombre}`}</td>
-                          <td className="px-4 py-2 border">{laboratorioNombre}</td>
-                           <td className="px-4 py-2 border">{product.precio_compra.toFixed(2)}Bs</td>
-                          <td className="px-4 py-2 border">{product.precio.toFixed(2)}Bs</td>
-                          <td className="px-4 py-2 border">{product.stock}</td>
-                          <td className="px-4 py-2 border">{product.casilla}</td>
-                          <td className="px-4 py-2 border">{product.vencimiento}</td>
-                          <td className="px-4 py-2 border flex gap-2">
-                            <button 
-                              style={{background:'blue'}}  
-                              className="btn btn-warning p-1 rounded text-white" 
-                              onClick={() => handleEdit(product)}
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              className="btn btn-danger p-1 rounded text-white bg-red-500" 
-                              onClick={() => handleEliminar(product.id)}
-                            >
-                              <Trash2 size={18}/>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+          return (
+            <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+              <td className="px-2 py-1.5 truncate border-r">{product.codigo}</td>
+              
+              {/* Celda Nombre con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{product.nombre}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {product.nombre}
+                </div>
+              </td>
+
+              {/* Celda Descripción con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{product.descripcion}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-64 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {product.descripcion}
+                </div>
+              </td>
+<td className="px-2 py-1.5 border-r relative group">
+  <span className="truncate block cursor-help">{tipoNombre}</span>
+  <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-32 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+    {tipoNombre}
+  </div>
+</td>
+
+              {/* Celda Presentación con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{fullPres}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {fullPres}
+                </div>
+              </td>
+
+              {/* Celda Laboratorio con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{labNombre}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {labNombre}
+                </div>
+              </td>
+
+              <td className="px-2 py-1.5 text-center border-r font-semibold text-green-700">{product.precio_compra.toFixed(2)}</td>
+              <td className="px-2 py-1.5 text-center border-r font-semibold text-blue-700">{product.precio.toFixed(2)}</td>
+              <td className="px-2 py-1.5 text-center border-r">{product.stock}</td>
+              <td className="px-2 py-1.5 text-center border-r">{product.casilla}</td>
+              <td className="px-2 py-1.5 text-center border-r text-[10px]">{product.vencimiento}</td>
+              
+              <td className="px-2 py-1.5 flex gap-1 justify-center items-center">
+                <button 
+                  style={{background:'blue'}}  
+                  className="p-1 rounded text-white hover:scale-110 transition-transform" 
+                  onClick={() => handleEdit(product)}
+                >
+                  <Edit2 size={14} />
+                </button>
+                <button 
+                  className="p-1 rounded text-white bg-red hover:scale-110 transition-transform" 
+                  onClick={() => handleEliminar(product.id)}
+                >
+                  <Trash2 size={14}/>
+                </button>
+              </td>
+            </tr>
+          );
+        })
+      )}
+    </tbody>
+  </table>
+</div></div>
 
             {/* Paginación */}
             {filteredProductos.length > 0 && (

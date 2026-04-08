@@ -36,6 +36,7 @@ interface Venta {
   fecha: string;
   idusuario: number;
   idcliente: number;
+  tipoPago:string;
 }
 
 interface Detalle_Ventas {
@@ -151,6 +152,7 @@ function Ventas() {
     total: 0,
     idusuario: 0,
     idcliente: 0,
+    tipoPago:""
   });
 
   const [tipo, setTipos] = useState<Tipo[]>([]);
@@ -203,25 +205,25 @@ function Ventas() {
     const fetchData = async () => {
       try {
         const responseProductos = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Productos/ListarProductosActivos"
+          "http://localhost:5000/api/Productos/ListarProductosActivos"
         );
         const dataProductos = await responseProductos.json();
         setProducto(dataProductos);
 
         const responseVentas = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasActivos"
+          "http://localhost:5000/api/Ventas/ListarVentasActivos"
         );
         const dataVentas = await responseVentas.json();
         setVenta(dataVentas);
 
         const responseUsuario = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Clientes/ListarClientesActivos"
+          "http://localhost:5000/api/Clientes/ListarClientesActivos"
         );
         const dataUsuarios = await responseUsuario.json();
         setUsuarios(dataUsuarios);
 
         const responseDVenta = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Detalle_Ventas/ListarDetalleVentasActivos"
+          "http://localhost:5000/api/Detalle_Ventas/ListarDetalleVentasActivos"
         );
         const dataDventa = await responseDVenta.json();
         setDVenta(dataDventa);
@@ -230,19 +232,19 @@ function Ventas() {
       }
 
       const responseTipos = await fetch(
-        "https://farmaciamontecinoweb.onrender.com/api/Tipos/ListarTiposActivos"
+        "http://localhost:5000/api/Tipos/ListarTiposActivos"
       );
       const dataTipos = await responseTipos.json();
       setTipos(dataTipos);
 
       const responseLaboratorios = await fetch(
-        "https://farmaciamontecinoweb.onrender.com/api/Laboratorios/ListarLaboratoriosActivos"
+        "http://localhost:5000/api/Laboratorios/ListarLaboratoriosActivos"
       );
       const dataLaboratorios = await responseLaboratorios.json();
       setLaboratorio(dataLaboratorios);
 
       const responsePresentacion = await fetch(
-        "https://farmaciamontecinoweb.onrender.com/api/Presentaciones/ListarPresentacionesActivos"
+        "http://localhost:5000/api/Presentaciones/ListarPresentacionesActivos"
       );
       const dataPresentacion = await responsePresentacion.json();
       setPresentacion(dataPresentacion);
@@ -252,7 +254,7 @@ function Ventas() {
   }, []);
 
   useEffect(() => {
-    fetch('https://farmaciamontecinoweb.onrender.com/api/Configuracions/ListarConfiguracionActivos')
+    fetch('http://localhost:5000/api/Configuracions/ListarConfiguracionActivos')
       .then(response => response.json())
       .then(data => setConfiguracion(data))
   }, []);
@@ -330,11 +332,12 @@ function Ventas() {
       total: totalGeneral.toString(),
       idusuario: iduser ? iduser : "0",
       idcliente: selectedUser.id.toString(),
+      tipoPago: addVenta.tipoPago || "Efectivo"
     }).toString();
 
     try {
       const responseVenta = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Ventas/Crear?${queryParams}`,
+        `http://localhost:5000/api/Ventas/Crear?${queryParams}`,
         {
           method: "POST",
         }
@@ -361,7 +364,7 @@ function Ventas() {
         }).toString();
 
         const responseDetalle = await fetch(
-          `https://farmaciamontecinoweb.onrender.com/api/Detalle_Ventas/Crear?${queryParamsDetalle}`,
+          `http://localhost:5000/api/Detalle_Ventas/Crear?${queryParamsDetalle}`,
           {
             method: "POST",
           }
@@ -378,85 +381,116 @@ function Ventas() {
       setCantidadProducto({});
       setTotalGeneral(0);
 
-      const generarPDF = () => {
-        try {
-          const doc = new jsPDF({
-            unit: 'mm',
-            format: [80, 197]
-          });
-          
-          const margin = 5;
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const contentWidth = pageWidth - (2 * margin);
-          
-          doc.setFont("helvetica");
-          doc.setTextColor(0, 0, 0);
-          
-          doc.setFontSize(12);
-          doc.setFont(undefined, "bold");
-          {configuracion.map((item) => (
-            doc.text(`${item.nombre}`, margin + 19, 15),
-            doc.setFontSize(8),
-            doc.setFont(undefined, "normal"),
-            doc.text(`Direccion: ${item.direccion}`, margin + 15, 18),
-            doc.text(`Cel: ${item.telefono}`, margin + 24, 21)
-          ))};
-          
-          doc.setFontSize(8);
-          doc.setFont(undefined, "normal");
-          doc.text(`Recibo Nro:${Math.floor(Math.random() * 1000000000)}`, margin, 26);
-          
-          doc.setDrawColor(0);
-          doc.setLineWidth(0.2);
-          doc.line(margin, 29, pageWidth - margin, 29);
-          
-          const now = new Date();
-          const fecha = now.toLocaleDateString();
-          const hora = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          
-          doc.text(`Sr(a): ${selectedUser.nombre}`.substring(0, 30), margin, 34);
-          doc.text(`CI/NIT: ${selectedUser.ci}`.substring(0, 35), margin, 38);
-          
-          doc.text(`FECHA: ${fecha}`, margin, 42);
-          doc.text(`${hora}`, margin + 25, 42);
-          
-          doc.line(margin, 47, pageWidth - margin, 47);
-          
-          doc.text("CANT", margin, 56);
-          doc.text("CONCEPTO", margin + 15, 56);
-          doc.text("P.U.", margin + 45, 56);
-          doc.text("IMP.", margin + 55, 56);
-          
-          let yPos = 63;
-          selectedProducto.forEach((producto, index) => {
-            const cantidad = cantidadProducto[producto.id] || 1;
-            const subtotal = cantidad * producto.precio;
-            
-            doc.text(cantidad.toString(), margin, yPos);
-            doc.text(producto.nombre.substring(0, 20), margin + 15, yPos);
-            doc.text(producto.precio.toFixed(2), margin + 45, yPos);
-            doc.text(subtotal.toFixed(2), margin + 55, yPos);
-            
-            yPos += 7;
-          });
-          
-          doc.line(margin, yPos + 7, pageWidth - margin, yPos + 7);
-          yPos += 14;
-          
-          doc.text(`Vendedor:${name}`, margin, yPos); yPos += 7;
+  const generarPDF = () => {
+  try {
 
-          doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
-          yPos += 10;
-          
-          doc.setFontSize(8);
-          doc.text("GRACIAS POR SU COMPRA.", pageWidth / 2, yPos, { align: "center" });
-          
-          doc.save(`recibo_${selectedUser.nombre}_${fecha}_${now.toISOString().split('T')[0]}.pdf`);
-        } catch (error) {
-          console.error("Error al generar la factura:", error);
-        }
-      };
+    const doc = new jsPDF({
+      unit: "mm",
+      format: [80, 197]
+    });
 
+    const margin = 5;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFont("helvetica");
+    doc.setTextColor(0, 0, 0);
+
+    // ENCABEZADO
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+
+    configuracion.forEach((item) => {
+      doc.text(item.nombre, pageWidth / 2, 15, { align: "center" });
+
+      doc.setFontSize(8);
+      doc.setFont(undefined, "normal");
+
+      doc.text(`Direccion: ${item.direccion}`, margin, 20);
+      doc.text(`Cel: ${item.telefono}`, margin, 24);
+    });
+
+    doc.setFontSize(8);
+
+    // NUMERO RECIBO
+    doc.text(`Recibo Nro: ${Math.floor(Math.random() * 1000000000)}`, margin, 30);
+
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+    doc.line(margin, 33, pageWidth - margin, 33);
+
+    const now = new Date();
+    const fecha = now.toLocaleDateString();
+    const hora = now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+
+    // CLIENTE
+    doc.text(`Sr(a): ${selectedUser.nombre}`.substring(0, 30), margin, 38);
+    doc.text(`CI/NIT: ${selectedUser.ci}`.substring(0, 35), margin, 42);
+
+    doc.text(`FECHA: ${fecha}`, margin, 46);
+    doc.text(`${hora}`, margin + 25, 46);
+
+    doc.line(margin, 50, pageWidth - margin, 50);
+
+    // CABECERA TABLA
+    doc.text("CANT", margin, 56);
+    doc.text("CONCEPTO", margin + 15, 56);
+    doc.text("P.U.", margin + 45, 56);
+    doc.text("IMP.", margin + 60, 56);
+
+    let yPos = 62;
+    let totalGeneral = 0;
+
+    // PRODUCTOS
+    selectedProducto.forEach((producto) => {
+
+      const cantidad = cantidadProducto[producto.id] || 1;
+      const subtotal = cantidad * producto.precio;
+      totalGeneral += subtotal;
+
+      const nombreDividido = doc.splitTextToSize(producto.nombre, 28);
+
+      doc.text(String(cantidad), margin, yPos);
+      doc.text(nombreDividido, margin + 15, yPos);
+      doc.text(producto.precio.toFixed(2), margin + 45, yPos);
+      doc.text(subtotal.toFixed(2), margin + 60, yPos);
+
+      yPos += nombreDividido.length * 5;
+    });
+
+    // LINEA ANTES DEL TOTAL
+    doc.line(margin, yPos + 3, pageWidth - margin, yPos + 3);
+    yPos += 10;
+
+    // TOTAL
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(10);
+
+    doc.text("TOTAL:", margin + 40, yPos);
+    doc.text(`${totalGeneral.toFixed(2)} Bs`, margin + 60, yPos);
+
+    doc.setFont(undefined, "normal");
+    yPos += 8;
+
+    // VENDEDOR
+    doc.setFontSize(8);
+    doc.text(`Vendedor: ${name}`, margin, yPos);
+    yPos += 7;
+
+    doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+    yPos += 10;
+
+    doc.text("GRACIAS POR SU COMPRA.", pageWidth / 2, yPos, { align: "center" });
+
+    doc.save(`recibo_${selectedUser.nombre}_${fecha}.pdf`);
+
+  } catch (error) {
+    console.error("Error al generar la factura:", error);
+  }
+};
       generarPDF();
       
       // Mostrar modal de éxito
@@ -634,155 +668,182 @@ function Ventas() {
                       <ShoppingCart className="h-5 w-5" />
                       Factura
                     </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <Calendar className="h-5 w-5 text-gray-500" />
-                        <input
-                          type="date"
-                          value={addVenta.fecha || ""}
-                          onChange={(e) =>
-                            setAddVenta({ ...addVenta, fecha: e.target.value })
+                  </CardHeader><CardContent className="pt-0">
+  <div className="space-y-4">
+    
+    <div className="flex items-center gap-4">
+      <Calendar className="h-5 w-5 text-gray-500" />
+      <input
+        type="date"
+        value={addVenta.fecha || ""}
+        onChange={(e) =>
+          setAddVenta({ ...addVenta, fecha: e.target.value })
+        }
+        className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+      />
+    </div>
+
+    {/* NUEVO SELECT TIPO PAGO */}
+    <div className="flex items-center gap-4">
+      <span className="text-gray-500 font-medium">Tipo de Pago:</span>
+
+      <select
+        value={addVenta.tipoPago || ""}
+        onChange={(e) =>
+          setAddVenta({ ...addVenta, tipoPago: e.target.value })
+        }
+        className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+      >
+        <option value="">Seleccionar</option>
+        <option value="QR">QR</option>
+        <option value="Efectivo">Efectivo</option>
+      </select>
+    </div>
+
+    <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg text-sm">
+      <div className="flex items-center gap-2">
+        <span className="text-gray-500 font-medium">Cliente:</span>
+        <p>{selectedUser.nombre} CI/NIT: {selectedUser.ci}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-gray-500 font-medium">Teléfono:</span>
+        <p>{selectedUser.telefono}</p>
+      </div>
+    </div>
+
+    {selectedProducto.length > 0 && (
+      <div className="mt-4">
+        <h3 className="text-md font-semibold mb-3">Productos Seleccionados</h3>
+
+        <div className="max-h-64 overflow-y-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-blue-600 text-white">
+              <tr>
+                <th className="px-2 py-1.5 text-left bg-blue font-medium">Producto</th>
+                <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio U.</th>
+                <th className="px-2 py-1.5 text-center bg-blue font-medium">Cantidad</th>
+                <th className="px-2 py-1.5 text-center bg-blue font-medium">Total</th>
+                <th className="px-2 py-1.5 text-center bg-blue font-medium">Quitar</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-200">
+              {selectedProducto.map((producto) => (
+                <motion.tr
+                  key={producto.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="border-t"
+                >
+                  <td className="px-2 py-1.5 text-left">{producto.nombre}</td>
+
+                  <td className="px-2 py-1.5 text-center">
+                    {producto.precio} Bs
+                  </td>
+
+                  <td className="px-2 py-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1">
+
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          const currentQty =
+                            cantidadProducto[producto.id] || 1;
+
+                          if (currentQty > 1) {
+                            handleChange(
+                              {
+                                target: {
+                                  value: (currentQty - 1).toString(),
+                                },
+                              } as any,
+                              producto.id
+                            );
                           }
-                          className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 font-medium">Cliente:</span>
-                          <p>{selectedUser.nombre} CI/NIT: {selectedUser.ci}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 font-medium">Teléfono:</span>
-                          <p>{selectedUser.telefono}</p>
-                        </div>
-                      </div>
+                        }}
+                        className="p-1 rounded-full hover:bg-red-100 bg-red-50 text-red-600"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </motion.button>
 
-                      {selectedProducto.length > 0 && (
-                        <div className="mt-4">
-                          <h3 className="text-md font-semibold mb-3">Productos Seleccionados</h3>
-                          <div className="max-h-64 overflow-y-auto rounded-lg border">
-                            <table className="w-full text-sm">
-                              <thead className="bg-blue-600 text-white">
-                                <tr>
-                                  <th className="px-2 py-1.5 text-left bg-blue font-medium">Producto</th>
-                                  <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio U.</th>
-                                  <th className="px-2 py-1.5 text-center bg-blue font-medium">Cantidad</th>
-                                  <th className="px-2 py-1.5 text-center bg-blue font-medium">Total</th>
-                                  <th className="px-2 py-1.5 text-center bg-blue font-medium">Quitar</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200">
-                                {selectedProducto.map((producto) => (
-                                  <motion.tr
-                                    key={producto.id}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="border-t"
-                                  >
-                                    <td className="px-2 py-1.5 text-left">{producto.nombre}</td>
-                                    <td className="px-2 py-1.5 text-center">{producto.precio} Bs</td>
-                                    <td className="px-2 py-1.5 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={() => {
-                                            const currentQty =
-                                              cantidadProducto[producto.id] ||
-                                              1;
-                                            if (currentQty > 1) {
-                                              handleChange(
-                                                {
-                                                  target: {
-                                                    value: (
-                                                      currentQty - 1
-                                                    ).toString(),
-                                                  },
-                                                } as any,
-                                                producto.id
-                                              );
-                                            }
-                                          }}
-                                          className="p-1 rounded-full hover:bg-red-100 bg-red-50 text-red-600"
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </motion.button>
-                                        <input
-                                          type="number"
-                                          value={
-                                            cantidadProducto[producto.id] || 1
-                                          }
-                                          onChange={(e) =>
-                                            handleChange(e, producto.id)
-                                          }
-                                          className="w-10 px-1 py-0.5 border rounded text-center text-xs"
-                                        />
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={() => {
-                                            const currentQty =
-                                              cantidadProducto[producto.id] ||
-                                              1;
-                                            handleChange(
-                                              {
-                                                target: {
-                                                  value: (
-                                                    currentQty + 1
-                                                  ).toString(),
-                                                },
-                                              } as any,
-                                              producto.id
-                                            );
-                                          }}
-                                          className="p-1 rounded-full hover:bg-green-100 bg-green-50 text-green-600"
-                                        >
-                                          <Plus className="h-3 w-3" />
-                                        </motion.button>
-                                      </div>
-                                    </td>
-                                    <td className="px-2 py-1.5 text-center">
-                                      {(cantidadProducto[producto.id] || 1) *
-                                        producto.precio}{" "}
-                                      Bs
-                                    </td>
-                                    <td className="px-2 py-1.5 text-center">
-                                      <motion.button
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => handleRemoveProducto(producto.id)}
-                                        className="p-1 rounded-full hover:bg-red bg-red text-white"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </motion.button>
-                                    </td>
-                                  </motion.tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                      <input
+                        type="number"
+                        value={cantidadProducto[producto.id] || 1}
+                        onChange={(e) =>
+                          handleChange(e, producto.id)
+                        }
+                        className="w-10 px-1 py-0.5 border rounded text-center text-xs"
+                      />
 
-                          <div className="mt-3 flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                            <span className="text-md font-semibold">
-                              Total:
-                            </span>
-                            <span className="text-lg font-bold text-blue-600">
-                              {totalGeneral}Bs
-                            </span>
-                          </div>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          const currentQty =
+                            cantidadProducto[producto.id] || 1;
 
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleAgregar}
-                            className="w-full mt-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md text-sm"
-                          >
-                            Guardar Venta
-                          </motion.button>
-                        </div>
-                      )}
+                          handleChange(
+                            {
+                              target: {
+                                value: (currentQty + 1).toString(),
+                              },
+                            } as any,
+                            producto.id
+                          );
+                        }}
+                        className="p-1 rounded-full hover:bg-green-100 bg-green-50 text-green-600"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </motion.button>
+
                     </div>
-                  </CardContent>
+                  </td>
+
+                  <td className="px-2 py-1.5 text-center">
+                    {(cantidadProducto[producto.id] || 1) *
+                      producto.precio} Bs
+                  </td>
+
+                  <td className="px-2 py-1.5 text-center">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() =>
+                        handleRemoveProducto(producto.id)
+                      }
+                      className="p-1 rounded-full hover:bg-red bg-red text-white"
+                    >
+                      <X className="h-3 w-3" />
+                    </motion.button>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-3 flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+          <span className="text-md font-semibold">
+            Total:
+          </span>
+
+          <span className="text-lg font-bold text-blue-600">
+            {totalGeneral} Bs
+          </span>
+        </div>
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleAgregar}
+          className="w-full mt-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md text-sm"
+        >
+          Guardar Venta
+        </motion.button>
+
+      </div>
+    )}
+  </div>
+</CardContent>
                 </Card>
               </motion.div>
             )}

@@ -72,18 +72,18 @@ function HistorialVentas() {
     const fetchData = async () => {
       try {
         const responseClientes = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Clientes/ListarClientesActivos"
+          "http://localhost:5000/api/Clientes/ListarClientesActivos"
         );
         const dataClientes = await responseClientes.json();
         setUsuario(dataClientes);
 
         const responseProducto = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Productos/ListarProductosActivos");
+          "http://localhost:5000/api/Productos/ListarProductosActivos");
         const dataProductos = await responseProducto.json();
         setProducto(dataProductos);
 
         const responseVentas = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasActivos"
+          "http://localhost:5000/api/Ventas/ListarVentasActivos"
         );
         const dataVentas = await responseVentas.json();
         setVentas(dataVentas);
@@ -98,7 +98,7 @@ function HistorialVentas() {
   const handlePdfClick = async (idventa: number) => {
     try {
       const responseDetalleVenta = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Ventas/listarVentaDetalleVenta?idventa=${idventa}`
+        `http://localhost:5000/api/Ventas/listarVentaDetalleVenta?idventa=${idventa}`
       );
       const dataDetalleVenta = await responseDetalleVenta.json();
       setDetalleVenta(dataDetalleVenta);
@@ -236,7 +236,7 @@ function HistorialVentas() {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Está seguro de eliminar esta venta?')) {
       try {
-        const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Ventas/${id}`, {
+        const response = await fetch(`http://localhost:5000/api/Ventas/${id}`, {
           method: 'DELETE'
         });
   

@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { IoPeopleSharp } from "react-icons/io5";
+import { useNavigate, Link } from "react-router-dom";
+// Importaciones corregidas para evitar errores de módulos
+import { IoPeopleSharp } from "react-icons/io5"; 
 import { IoMdPerson } from "react-icons/io";
 import { FcDataConfiguration } from "react-icons/fc";
 import { BsMenuButtonWide } from "react-icons/bs";
-import { FaProductHunt } from "react-icons/fa";
-import { FaFlask } from "react-icons/fa6";
+import { FaProductHunt, FaFlask, FaTags, FaCartPlus } from "react-icons/fa6";
 import { MdOutlinePointOfSale } from "react-icons/md";
-import { FaCartPlus } from "react-icons/fa";
-import { FaTags } from "react-icons/fa";
 import icono from '../img/logo1.png';
-import { FcBusinessman } from "react-icons/fc";
 
 function NavBarRoot() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,10 +24,8 @@ function NavBarRoot() {
 
   const fetchUserPermissions = async (userId) => {
     try {
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
-      if (!response.ok) {
-        throw new Error('Error al obtener los permisos');
-      }
+      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
+      if (!response.ok) throw new Error('Error al obtener los permisos');
       const data = await response.json();
       setUserPermissions(data);
     } catch (error) {
@@ -46,113 +41,123 @@ function NavBarRoot() {
     localStorage.removeItem("userId");
     localStorage.removeItem("userName");
     setIsAuthenticated(false);
-    navigate("/"); // Redirigir a Home tras cerrar sesión
+    navigate("/");
   };
 
   return (
     <div className="flex">
-      {/* Navbar en columna */}
-      <nav className="bg-blue text-white h-screen w-56 flex flex-col items-center py-5">
-        <div className="mb-5">
-          <a href="/home"> <img src={icono} alt="Icon" className="w-32 h-20" />
-          </a>
+      {/* Mantenemos tu clase 'bg-blue' para no perder el tono original */}
+      <nav className="bg-blue text-white h-screen w-56 flex flex-col py-5 shadow-lg">
+        
+        {/* Logo */}
+        <div className="mb-8 flex justify-center px-4">
+          <Link to="/home"> 
+            <img src={icono} alt="Logo" className="w-32 h-auto" />
+          </Link>
         </div>
-        <ul className="flex flex-col gap-6">
+
+        {/* Links de navegación */}
+        <ul className="flex flex-col gap-5 px-6 flex-grow">
           {hasPermission(2) && (
             <li>
-              <a href="/usuario" className="hover:text-gray-300 flex items-center gap-2">
-                <IoMdPerson /> Usuarios
-              </a>
+              <Link to="/usuario" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <IoMdPerson className="text-lg" /> 
+                <span className="text-[15px] font-medium">Usuarios</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(1) && (
             <li>
-              <a href="/configuracion" className="hover:text-gray-300 flex items-center gap-2">
-                <FcDataConfiguration /> Configuracion
-              </a>
+              <Link to="/configuracion" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FcDataConfiguration className="text-lg" /> 
+                <span className="text-[15px] font-medium">Configuración</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(7) && (
             <li>
-              <a href="/tipos" className="hover:text-gray-300 flex items-center gap-2">
-                <FaTags /> Tipos
-              </a>
+              <Link to="/tipos" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FaTags className="text-lg" /> 
+                <span className="text-[15px] font-medium">Tipos</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(8) && (
             <li>
-              <a href="/presentacion" className="hover:text-gray-300 flex items-center gap-2">
-                <BsMenuButtonWide /> Presentacion
-              </a>
+              <Link to="/presentacion" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <BsMenuButtonWide className="text-lg" /> 
+                <span className="text-[15px] font-medium">Presentación</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(9) && (
             <li>
-              <a href="/laboratorio" className="hover:text-gray-300 flex items-center gap-2">
-                <FaFlask />Laboratorio
-              </a>
+              <Link to="/laboratorio" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FaFlask className="text-lg" /> 
+                <span className="text-[15px] font-medium">Laboratorio</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(4) && (
             <li>
-              <a href="/producto" className="hover:text-gray-300 flex items-center gap-2">
-                <FaProductHunt /> Producto
-              </a>
+              <Link to="/producto" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FaProductHunt className="text-lg" /> 
+                <span className="text-[15px] font-medium">Producto</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(3) && (
             <li>
-              <a href="/clientes" className="hover:text-gray-300 flex items-center gap-2">
-                <IoPeopleSharp />Clientes
-              </a>
+              <Link to="/clientes" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <IoPeopleSharp className="text-lg" /> 
+                <span className="text-[15px] font-medium">Clientes</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(5) && (
             <li>
-              <a href="/ventas" className="hover:text-gray-300 flex items-center gap-2">
-                <MdOutlinePointOfSale /> Ventas
-              </a>
+              <Link to="/ventas" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <MdOutlinePointOfSale className="text-lg" /> 
+                <span className="text-[15px] font-medium">Ventas</span>
+              </Link>
             </li>
           )}
 
           {hasPermission(6) && (
             <li>
-              <a href="/historialVentas" className="hover:text-gray-300 flex items-center gap-2">
-                <FaCartPlus />
-                H.Ventas
-              </a>
-            </li>
-          )}
-
-          {isAuthenticated ? (
-            <>
-              <li>
-                <button
-                  onClick={handleLogout}
-                  className=" text-white px-3 py-2 rounded hover:bg-red bg-blue w-48"
-                >
-                  Cerrar Sesión
-                </button>
-              </li>
-            </>
-          ) : (
-            <li>
-              <a
-                href="/login"
-                className="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
-              >
-                Iniciar Sesión/Registrarse
-              </a>
+              <Link to="/historialVentas" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FaCartPlus className="text-lg" /> 
+                <span className="text-[15px] font-medium">H. Ventas</span>
+              </Link>
             </li>
           )}
         </ul>
+
+        {/* Botón de Logout ajustado para no romper el diseño */}
+        <div className="px-4 mt-auto border-t border-blue-400 pt-4">
+          {isAuthenticated ? (
+            <button
+              onClick={handleLogout}
+              className="w-full bg-[#22c55e] hover:bg-red-600 text-white py-2 rounded-md transition-all duration-300 text-sm font-bold shadow-md"
+            >
+              Cerrar Sesión
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white py-2 rounded-md transition-all duration-300 text-sm font-bold block text-center"
+            >
+              Iniciar Sesión
+            </Link>
+          )}
+        </div>
       </nav>
     </div>
   );

@@ -16,8 +16,8 @@ const Login: React.FC = () => {
         }
 
         try {
-            const urlCliente = `https://farmaciamontecinoweb.onrender.com/api/Usuarios/Login?correo=${correo}&password=${password}`;
-            const urlEmpleado = `https://farmaciamontecinoweb.onrender.com/api/Usuarios/Login??correo=${correo}&password=${password}`;
+            const urlCliente = `http://localhost:5000/api/Usuarios/Login?correo=${correo}&password=${password}`;
+            const urlEmpleado = `http://localhost:5000/api/Usuarios/Login??correo=${correo}&password=${password}`;
 
             const responseCliente = await fetch(urlCliente, {
                 method: 'GET',
@@ -82,8 +82,8 @@ const Login: React.FC = () => {
                 <h1 className="text-3xl font-bold mb-4 text-white">INICIO DE SESIÓN</h1>
                 <form onSubmit={manejarEnvio} className="shadow-md rounded px-8 py-6 w-80 bg-transparent">
                     <input
-                        type="email"
-                        placeholder="Correo electrónico"
+                        type="text"
+                        placeholder="Usuario"
                         value={correo}
                         onChange={(e) => setEmail(e.target.value)}
                         className="border border-gray-300 p-2 mb-4 w-full rounded transition-transform transform focus:scale-105 focus:outline-none"

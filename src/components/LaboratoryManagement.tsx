@@ -59,7 +59,7 @@ const LaboratoryManagement: React.FC = () => {
 
   const fetchLaboratories = async () => {
     try {
-      const response = await fetch("https://farmaciamontecinoweb.onrender.com/api/Laboratorios/ListarLaboratoriosActivos");
+      const response = await fetch("http://localhost:5000/api/Laboratorios/ListarLaboratoriosActivos");
       if (!response.ok) {
         throw new Error("Error al obtener los laboratorios");
       }
@@ -94,7 +94,7 @@ const LaboratoryManagement: React.FC = () => {
     
     try {
       const response = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Laboratorios/Crear?laboratorionombre=${encodeURIComponent(newName)}&direccion=${encodeURIComponent(newDireccion)}`,
+        `http://localhost:5000/api/Laboratorios/Crear?laboratorionombre=${encodeURIComponent(newName)}&direccion=${encodeURIComponent(newDireccion)}`,
         {
           method: "POST",
         }
@@ -131,7 +131,7 @@ const LaboratoryManagement: React.FC = () => {
     
     try {
       const response = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Laboratorios/Actualizar?id=${editLabId}&laboratorionombre=${encodeURIComponent(newName)}&direccion=${encodeURIComponent(newDireccion)}`,
+        `http://localhost:5000/api/Laboratorios/Actualizar?id=${editLabId}&laboratorionombre=${encodeURIComponent(newName)}&direccion=${encodeURIComponent(newDireccion)}`,
         {
           method: "PUT",
         }
@@ -159,7 +159,7 @@ const LaboratoryManagement: React.FC = () => {
 
   const handleEliminar = async (id: number) => {
     try {
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Laboratorios/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/Laboratorios/${id}`, {
         method: 'DELETE',
       });
 

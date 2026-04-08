@@ -7,12 +7,16 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FaRegEye } from "react-icons/fa";
 import Modal from "./Modal";
-
+import logo from "../img/logo1.png";
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => void;
     lastAutoTable: any;
   }
+}
+interface Laboratorio {
+  id: number;
+  laboratorioNombre: string;
 }
 
 interface Venta {
@@ -32,7 +36,8 @@ interface DetalleVenta {
 interface Producto {
   id: number;
   nombre: string;
-  stock: number; // Stock actual del producto
+  stock: number;
+  idlaboratorio: number;
 }
 interface Configuracion {
   id: string;
@@ -48,28 +53,44 @@ function HistorialVentasProducto() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
-  const [configuracion,setConfiguracion]=useState<Configuracion[]>([]);
-
-  const calcularTotalGeneral = () => {
-    return getProductosVendidos().reduce((total, producto) => total + producto.total, 0);
+  const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
+  const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
+  const getLaboratorioNombre = (idlaboratorio: number) => {
+    const lab = laboratorios.find((l) => l.id === idlaboratorio);
+    return lab ? lab.laboratorioNombre : "Sin laboratorio";
   };
-useEffect(() => {
-  fetch('https://farmaciamontecinoweb.onrender.com/api/Configuracions/ListarConfiguracionActivos')
-    .then(response => response.json())
-    .then(data => setConfiguracion(data))
-}, []) ;
+  const calcularTotalGeneral = () => {
+    return getProductosVendidos().reduce(
+      (total, producto) => total + producto.total,
+      0,
+    );
+  };
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/Laboratorios/ListarLaboratoriosActivos")
+      .then((res) => res.json())
+      .then((data) => setLaboratorios(data))
+      .catch((err) => console.error("Error laboratorios:", err));
+  }, []);
+  useEffect(() => {
+    fetch(
+      "http://localhost:5000/api/Configuracions/ListarConfiguracionActivos",
+    )
+      .then((response) => response.json())
+      .then((data) => setConfiguracion(data));
+  }, []);
   useEffect(() => {
     const fetchData = async () => {
       try {
         const responseProductos = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Productos/ListarProductosActivos"
+          "http://localhost:5000/api/Productos/ListarProductosActivos",
         );
         const dataProductos = await responseProductos.json();
         setProductos(dataProductos);
 
-        let url = "https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasActivos";
+        let url = "http://localhost:5000/api/Ventas/ListarVentasActivos";
         if (fechaIni && fechaFin) {
-          url = `https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasFecha?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
+          url = `http://localhost:5000/api/Ventas/ListarVentasFecha?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
         }
 
         const responseVentas = await fetch(url);
@@ -86,23 +107,32 @@ useEffect(() => {
   const getProductosVendidos = () => {
     const productosVendidos: Record<
       number,
-      { nombre: string; cantidad: number; precioUnitario: number; total: number; stock: number }
+      {
+        nombre: string;
+        laboratorio: string;
+        cantidad: number;
+        precioUnitario: number;
+        total: number;
+        stock: number;
+      }
     > = {};
 
     ventas?.forEach((venta) => {
       venta.detalles?.forEach((detalle) => {
         const productoId = detalle.productoId;
         const producto = productos.find((p) => p.id === productoId);
+        const laboratorioNombre = producto
+          ? getLaboratorioNombre(producto.idlaboratorio)
+          : "Sin laboratorio";
 
-        if (!productosVendidos[productoId]) {
-          productosVendidos[productoId] = {
-            nombre: producto ? producto.nombre : "Desconocido",
-            cantidad: 0,
-            precioUnitario: detalle.precioUnitario,
-            total: 0,
-            stock: producto ? producto.stock : 0, // Agregar stock actual
-          };
-        }
+        productosVendidos[productoId] = {
+          nombre: producto ? producto.nombre : "Desconocido",
+          laboratorio: laboratorioNombre,
+          cantidad: 0,
+          precioUnitario: detalle.precioUnitario,
+          total: 0,
+          stock: producto ? producto.stock : 0,
+        };
 
         productosVendidos[productoId].cantidad += detalle.cantidad;
         productosVendidos[productoId].total += detalle.totalDetalle;
@@ -116,114 +146,156 @@ useEffect(() => {
     setSelectedVenta(venta);
     setIsModalOpen(true);
   };
-
   const generarPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
 
-    // Agregar un fondo de color suave en la parte superior
-    doc.setFillColor(235, 247, 255);
-    doc.rect(0, 0, pageWidth, 40, "F");
+    // 🔵 Barra superior
+    doc.setFillColor(41, 128, 185);
+    doc.rect(0, 0, pageWidth, 20, "F");
 
-    // Título principal
-    doc.setFontSize(24);
-    doc.setTextColor(44, 62, 80);
+    // 🔵 LOGO
+
+    doc.addImage(logo, "PNG", 14, 5, 18, 10);
+
+    // 🔵 Titulo
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.text("REPORTE DE VENTAS", pageWidth / 2, 20, { align: "center" });
+    doc.text("REPORTE DE VENTAS POR PRODUCTO", pageWidth / 2, 13, {
+      align: "center",
+    });
 
-        doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
-      {configuracion.map((item) => (
-    doc.text(`${item.nombre}`, 14, 35),
-    doc.setFontSize(8),
-    doc.setFont(undefined, "normal"),
-    doc.text(`Direccion: ${item.direccion}`, 14, 42),
-    doc.text(`Cel: ${item.telefono}` ,14, 48 )
-  ))};
- 
+    doc.setTextColor(0, 0, 0);
 
-    // Línea divisoria
-    doc.setDrawColor(41, 128, 185);
-    doc.setLineWidth(0.5);
-    doc.line(14, 52, pageWidth - 14, 52);
+    // 🏥 DATOS FARMACIA
+    let y = 30;
 
-    // Información del rango de fechas
-    doc.setFontSize(11);
+    configuracion.forEach((item) => {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(item.nombre, 14, y);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Direccion: ${item.direccion}`, 14, y + 6);
+      doc.text(`Telefono: ${item.telefono}`, 14, y + 11);
+    });
+
+    // 📅 CAJA DE INFORMACION
+    doc.setFillColor(245, 247, 250);
+    doc.setDrawColor(200);
+
+    doc.roundedRect(pageWidth - 75, 28, 60, 22, 3, 3, "FD");
+
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("INFORMACIÓN DEL REPORTE", 14, 62);
+    doc.text("INFORMACION", pageWidth - 45, 34, { align: "center" });
 
     doc.setFont("helvetica", "normal");
-    doc.text(`Fecha Inicio: ${fechaIni}`, 14, 70);
-    doc.text(`Fecha Fin: ${fechaFin}`, 14, 76);
 
-    // Tabla de productos vendidos
-    doc.setFontSize(11);
+    doc.text(`Desde: ${fechaIni}`, pageWidth - 70, 40);
+    doc.text(`Hasta: ${fechaFin}`, pageWidth - 70, 45);
+
+    // Línea separadora
+    doc.setDrawColor(41, 128, 185);
+    doc.line(14, 55, pageWidth - 14, 55);
+
+    // TITULO TABLA
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("DETALLE DE PRODUCTOS VENDIDOS", 14, 90);
+    doc.text("DETALLE DE MEDICAMENTOS VENDIDOS", 14, 65);
 
     const tableColumn = [
       "Producto",
-      "Cantidad Vendida",
-      "Precio Unitario",
-      "Stock Actual",
+      "Laboratorio",
+      "Cantidad",
+      "Precio",
+      "Stock",
       "Total",
     ];
 
     const productosVendidos = getProductosVendidos();
-    const tableRows = productosVendidos.map((producto) => [
-      producto.nombre,
-      producto.cantidad,
-      `Bs${producto.precioUnitario.toFixed(2)}`,
-      producto.stock, // Stock actual
-      `Bs${producto.total.toFixed(2)}`,
+
+    const tableRows = productosVendidos.map((p) => [
+      p.nombre,
+      p.laboratorio,
+      p.cantidad,
+      `Bs ${p.precioUnitario.toFixed(2)}`,
+      p.stock,
+      `Bs ${p.total.toFixed(2)}`,
     ]);
 
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 95,
+      startY: 70,
       theme: "grid",
+
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
+
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: 255,
-        fontSize: 10,
+        fontStyle: "bold",
         halign: "center",
       },
+
       bodyStyles: {
-        fontSize: 9,
         halign: "center",
       },
+
       columnStyles: {
-        0: { halign: "left" }, // Alinear la columna "Producto" a la izquierda
+        0: { halign: "left" },
       },
+
       alternateRowStyles: {
-        fillColor: [245, 247, 250], // Color de fondo alterno para las filas
+        fillColor: [245, 247, 250],
       },
     });
 
-    // Total general
-    const finalY = doc.lastAutoTable.finalY || 150;
-    doc.setDrawColor(41, 128, 185);
-    doc.setLineWidth(0.5);
-    doc.line(pageWidth - 80, finalY + 10, pageWidth - 14, finalY + 10);
+    // 💰 TOTAL GENERAL
 
+    let finalY = doc.lastAutoTable.finalY + 12;
+
+    // 👇 VERIFICAR SI HAY ESPACIO EN LA PÁGINA
+    if (finalY > pageHeight - 30) {
+      doc.addPage();
+      finalY = 20; // posición inicial en la nueva página
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(pageWidth - 85, finalY - 6, 70, 15, "F");
+
+    doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text("TOTAL GENERAL:", pageWidth - 80, finalY + 18);
-    doc.text(`${calcularTotalGeneral().toFixed(2)} Bs`, pageWidth - 25, finalY + 18, {
-      align: "right",
-    });
+    doc.text("TOTAL GENERAL:", pageWidth - 80, finalY + 4);
 
-    // Pie de página
-    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(128, 128, 128);
-    doc.text("Este reporte es generado automáticamente.", 14, pageHeight - 20);
-    doc.text(`Generado el ${new Date().toLocaleString()}`, pageWidth - 14, pageHeight - 20, {
-      align: "right",
-    });
+    doc.text(
+      `${calcularTotalGeneral().toFixed(2)} Bs`,
+      pageWidth - 20,
+      finalY + 4,
+      { align: "right" },
+    );
 
-    // Guardar el PDF
+    // 📄 PIE DE PAGINA
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+
+    doc.text("Sistema de Gestion Farmaceutica", 14, pageHeight - 10);
+
+    doc.text(
+      `Generado: ${new Date().toLocaleString()}`,
+      pageWidth - 14,
+      pageHeight - 10,
+      { align: "right" },
+    );
+
     doc.save(`reporte_ventas_${fechaIni}_${fechaFin}.pdf`);
   };
 
@@ -255,6 +327,7 @@ useEffect(() => {
           <thead className="bg-blue-500 text-white uppercase text-sm">
             <tr>
               <th className="px-6 py-3 bg-blue text-left">Producto</th>
+              <th className="px-6 py-3 bg-blue text-left">Laboratorio</th>
               <th className="px-6 py-3 bg-blue text-left">Cantidad</th>
               <th className="px-6 py-3 bg-blue text-left">Stock Actual</th>
               <th className="px-6 py-3 bg-blue text-left">Precio Unitario</th>
@@ -265,6 +338,7 @@ useEffect(() => {
             {getProductosVendidos().map((producto, index) => (
               <tr key={index} className="border-b hover:bg-gray-50">
                 <td className="p-3">{producto.nombre}</td>
+                <td className="p-3">{producto.laboratorio}</td>
                 <td className="p-3">{producto.cantidad}</td>
                 <td className="p-3">{producto.stock}</td>
                 <td className="p-3">{producto.precioUnitario.toFixed(2)} Bs</td>
@@ -299,10 +373,12 @@ useEffect(() => {
               <>
                 <div className="mb-6">
                   <p className="text-gray-700">
-                    <span className="font-bold">Fecha:</span> {selectedVenta.fechaVenta}
+                    <span className="font-bold">Fecha:</span>{" "}
+                    {selectedVenta.fechaVenta}
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-bold">Total Venta:</span> {selectedVenta.totalVenta.toFixed(2)} Bs
+                    <span className="font-bold">Total Venta:</span>{" "}
+                    {selectedVenta.totalVenta.toFixed(2)} Bs
                   </p>
                 </div>
 
@@ -310,21 +386,35 @@ useEffect(() => {
                   <table className="min-w-full bg-white border rounded shadow">
                     <thead className="bg-blue text-white uppercase text-sm">
                       <tr>
-                        <th className="px-6 py-3 bg-blue text-left">Producto</th>
-                        <th className="px-6 py-3 bg-blue  text-left">Cantidad</th>
-                        <th className="px-6 py-3 bg-blue text-left">Precio Unit.</th>
+                        <th className="px-6 py-3 bg-blue text-left">
+                          Producto
+                        </th>
+                        <th className="px-6 py-3 bg-blue  text-left">
+                          Cantidad
+                        </th>
+                        <th className="px-6 py-3 bg-blue text-left">
+                          Precio Unit.
+                        </th>
                         <th className="px-6 py-3 bg-blue text-left">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedVenta.detalles?.map((detalle, index) => {
-                        const producto = productos.find((p) => p.id === detalle.productoId);
+                        const producto = productos.find(
+                          (p) => p.id === detalle.productoId,
+                        );
                         return (
                           <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="p-3">{producto ? producto.nombre : "Desconocido"}</td>
+                            <td className="p-3">
+                              {producto ? producto.nombre : "Desconocido"}
+                            </td>
                             <td className="p-3">{detalle.cantidad}</td>
-                            <td className="p-3">{detalle.precioUnitario.toFixed(2)} Bs</td>
-                            <td className="p-3">{detalle.totalDetalle.toFixed(2)} Bs</td>
+                            <td className="p-3">
+                              {detalle.precioUnitario.toFixed(2)} Bs
+                            </td>
+                            <td className="p-3">
+                              {detalle.totalDetalle.toFixed(2)} Bs
+                            </td>
                           </tr>
                         );
                       })}

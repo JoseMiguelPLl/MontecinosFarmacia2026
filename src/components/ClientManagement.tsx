@@ -56,7 +56,7 @@ const [itemsPerPage, setItemsPerPage] = useState(10);
 
 
   useEffect(() => {
-    fetch("https://farmaciamontecinoweb.onrender.com/api/Clientes/ListarClientesActivos")
+    fetch("http://localhost:5000/api/Clientes/ListarClientesActivos")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Error al obtener los clientes");
@@ -90,13 +90,13 @@ const [itemsPerPage, setItemsPerPage] = useState(10);
   
     try {
       const response = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Clientes/Crear?nombre=${newNombre}&ci=${newCI}&telefono=${newTelefono}&direccion=${newDireccion}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        `http://localhost:5000/api/Clientes/Crear?nombre=${newNombre}&ci=${newCI}&telefono=${newTelefono}&direccion=${newDireccion}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
       );
 
       if (response.ok) {
@@ -139,7 +139,7 @@ const [itemsPerPage, setItemsPerPage] = useState(10);
     if (window.confirm('¿Está seguro de eliminar este cliente?')) {
       try {
         const response = await fetch(
-          `https://farmaciamontecinoweb.onrender.com/api/Clientes/${id}`,
+          `http://localhost:5000/api/Clientes/${id}`,
           {
             method: "DELETE",
           }
@@ -184,7 +184,7 @@ const [itemsPerPage, setItemsPerPage] = useState(10);
   
     try {
       const response = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Clientes/Actualizar?id=${editClient}&nombre=${newNombre}&ci=${newCI}&telefono=${newTelefono}&direccion=${newDireccion}`,
+        `http://localhost:5000/api/Clientes/Actualizar?id=${editClient}&nombre=${newNombre}&ci=${newCI}&telefono=${newTelefono}&direccion=${newDireccion}`,
         {
           method: "PUT",
           headers: {

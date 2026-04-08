@@ -87,7 +87,7 @@ function HistorialVentasCliente() {
   const [fechaFin, setFechaFin] = useState<string>("");
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
     useEffect(() => {
-    fetch('https://farmaciamontecinoweb.onrender.com/api/Configuracions/ListarConfiguracionActivos')
+    fetch('http://localhost:5000/api/Configuracions/ListarConfiguracionActivos')
       .then(response => response.json())
       .then(data => setConfiguracion(data))
   }, []);
@@ -96,20 +96,20 @@ function HistorialVentasCliente() {
     const fetchData = async () => {
       try {
         const responseClientes = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Clientes/ListarClientesActivos"
+          "http://localhost:5000/api/Clientes/ListarClientesActivos"
         );
         const dataClientes = await responseClientes.json();
         setUsuario(dataClientes);
 
         const responseProducto = await fetch(
-          "https://farmaciamontecinoweb.onrender.com/api/Productos/ListarProductosActivos"
+          "http://localhost:5000/api/Productos/ListarProductosActivos"
         );
         const dataProductos = await responseProducto.json();
         setProducto(dataProductos);
 
-        let url = "https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasActivos";
+        let url = "http://localhost:5000/api/Ventas/ListarVentasActivos";
         if (fechaIni && fechaFin) {
-          url = `https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasFecha?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
+          url = `http://localhost:5000/api/Ventas/ListarVentasFecha?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
         }
 
         const responseVentas = await fetch(url);
@@ -126,7 +126,7 @@ function HistorialVentasCliente() {
   const handlePdfClick = async (idventa: number) => {
     try {
       const responseDetalleVenta = await fetch(
-        `https://farmaciamontecinoweb.onrender.com/api/Ventas/listarVentaDetalleVenta?idventa=${idventa}`
+        `http://localhost:5000/api/Ventas/listarVentaDetalleVenta?idventa=${idventa}`
       );
       const dataDetalleVenta = await responseDetalleVenta.json();
       setDetalleVenta(dataDetalleVenta);
@@ -137,105 +137,132 @@ function HistorialVentasCliente() {
     }
   };
 
-  const generarPDF = () => {
+const generarPDF = () => {
   try {
+
     const doc = new jsPDF({
-      unit: 'mm',
+      unit: "mm",
       format: [80, 197]
     });
-    
+
     const margin = 5;
     const pageWidth = doc.internal.pageSize.getWidth();
-    const contentWidth = pageWidth - (2 * margin);
-    
+
     doc.setFont("helvetica");
     doc.setTextColor(0, 0, 0);
-    
-    {configuracion.map((item) => (
-            doc.text(`${item.nombre}`, margin + 19, 15),
-            doc.setFontSize(8),
-            doc.setFont(undefined, "normal"),
-            doc.text(`Direccion: ${item.direccion}`, margin + 15, 18),
-            doc.text(`Cel: ${item.telefono}`, margin + 24, 21)
-          ))};
-    // Número de factura
+
+    // DATOS DE FARMACIA
+    configuracion.forEach((item) => {
+
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      doc.text(item.nombre, pageWidth / 2, 12, { align: "center" });
+
+      doc.setFontSize(8);
+      doc.setFont(undefined, "normal");
+      doc.text(`Direccion: ${item.direccion}`, pageWidth / 2, 16, { align: "center" });
+      doc.text(`Cel: ${item.telefono}`, pageWidth / 2, 20, { align: "center" });
+
+    });
+
+    // NUMERO RECIBO
     doc.setFontSize(8);
     doc.text(`Recibo Nro: ${Math.floor(Math.random() * 1000000000)}`, margin, 26);
-    
-    // Línea separadora
-    doc.setDrawColor(0);
+
     doc.setLineWidth(0.2);
     doc.line(margin, 29, pageWidth - margin, 29);
-    
-    // Fecha y hora
+
+    // FECHA
     const now = new Date();
     const fecha = now.toLocaleDateString();
-    const hora = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    // Información del cliente
-    const selectedVenta = ventas.find((v) => v.id === selectedVentaId);
-    const selectedUser = usuario.find((u) => u.id === selectedVenta?.idcliente);
-    
-    doc.text(`Sr(a): ${selectedUser?.nombre} ${selectedUser?.ci}`.substring(0, 30), margin, 34);
-    doc.text(`CI/NIT: ${selectedUser?.ci}`.substring(0, 35), margin, 38);
-    
-    doc.text(`FECHA: ${fecha}`, margin, 42);
+    const hora = now.toLocaleTimeString();
+
+    const selectedVenta = ventas.find(v => v.id === selectedVentaId);
+    const selectedUser = usuario.find(u => u.id === selectedVenta?.idcliente);
+
+    doc.text(`Sr(a): ${selectedUser?.nombre ?? ""}`, margin, 34);
+    doc.text(`CI/NIT: ${selectedUser?.ci ?? ""}`, margin, 38);
+
+    doc.text(`Fecha: ${fecha}`, margin, 42);
     doc.text(`${hora}`, margin + 25, 42);
-    
+
     doc.line(margin, 47, pageWidth - margin, 47);
-    
-    // Encabezados de tabla
+
+    // ENCABEZADO TABLA
+    doc.setFont(undefined, "bold");
+
     doc.text("CANT", margin, 56);
-    doc.text("CONCEPTO", margin + 15, 56);
+    doc.text("PRODUCTO", margin + 15, 56);
     doc.text("P.U.", margin + 45, 56);
-    doc.text("IMP.", margin + 55, 56);
-    
-    // Detalles de productos
+    doc.text("IMP.", margin + 60, 56);
+
+    doc.setFont(undefined, "normal");
+
     let yPos = 63;
+
+    // PRODUCTOS
     detalleventa.forEach((detalle) => {
-      const producto = productos.find((p) => p.id === detalle.idproducto);
+
+      const producto = productos.find(p => p.id === detalle.idproducto);
       const nombreProducto = producto ? producto.nombre : "Producto no encontrado";
-      
+
+      // dividir texto largo
+      const lineasProducto = doc.splitTextToSize(nombreProducto, 28);
+
+      // primera linea
       doc.text(detalle.cantidad.toString(), margin, yPos);
-      doc.text(nombreProducto.substring(0, 20), margin + 15, yPos);
       doc.text(detalle.precio.toFixed(2), margin + 45, yPos);
-      doc.text(detalle.total.toFixed(2), margin + 55, yPos);
-      
-      yPos += 7;
+      doc.text(detalle.total.toFixed(2), margin + 60, yPos);
+
+      // imprimir nombre en varias lineas
+      lineasProducto.forEach((linea, index) => {
+        doc.text(linea, margin + 15, yPos + (index * 5));
+      });
+
+      // aumentar espacio según cantidad de lineas
+      yPos += lineasProducto.length * 5 + 2;
+
     });
-    
-    // Línea separadora antes del total
-    doc.line(margin, yPos + 7, pageWidth - margin, yPos + 7);
-    yPos += 14;
-    
-    // Total
+
+    // LINEA TOTAL
+    doc.line(margin, yPos + 4, pageWidth - margin, yPos + 4);
+
+    yPos += 10;
+
+    // TOTAL
     doc.setFont(undefined, "bold");
     doc.text("TOTAL:", margin + 45, yPos);
-    doc.text(`${selectedVenta?.total.toFixed(2)} Bs`, margin + 55, yPos);
+    doc.text(`${selectedVenta?.total.toFixed(2)} Bs`, margin + 60, yPos);
     doc.setFont(undefined, "normal");
-    
-    yPos += 7;
-    
-    // Información del vendedor
+
+    yPos += 8;
+
+    // VENDEDOR
     doc.text(`Vendedor: ${name}`, margin, yPos);
-    yPos += 7;
-    
-    // Línea final
-    doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
-    yPos += 10;
-    
-    // Mensaje de agradecimiento
+
+    yPos += 6;
+
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+
+    yPos += 8;
+
+    // MENSAJE
     doc.setFontSize(8);
-    doc.text("GRACIAS POR SU COMPRA.", pageWidth / 2, yPos, { align: "center" });
-    
-    // Pie de página
-    doc.text("Esta factura es válida por 7 días.", margin,  - 15);
-    doc.text(`Generado el ${now.toLocaleString()}`, pageWidth - margin,  - 15, { align: "right" });
-    
-    // Guardar PDF
-    doc.save(`factura_${selectedUser?.nombre}_${selectedUser?.ci}_${now.toISOString().split('T')[0]}.pdf`);
+    doc.text("GRACIAS POR SU COMPRA", pageWidth / 2, yPos, { align: "center" });
+
+    yPos += 5;
+
+    doc.text("Conserve su recibo", pageWidth / 2, yPos, { align: "center" });
+
+    // GUARDAR
+    doc.save(
+      `factura_${selectedUser?.nombre}_${selectedUser?.ci}_${now.toISOString().split("T")[0]}.pdf`
+    );
+
   } catch (error) {
+
     console.error("Error al generar la factura:", error);
+
   }
 };
 
@@ -254,7 +281,7 @@ function HistorialVentasCliente() {
     if (window.confirm("¿Está seguro de eliminar esta venta?")) {
       try {
         const response = await fetch(
-          `https://farmaciamontecinoweb.onrender.com/api/Ventas/${id}`,
+          `http://localhost:5000/api/Ventas/${id}`,
           {
             method: "DELETE",
           }
@@ -308,7 +335,7 @@ function HistorialVentasCliente() {
                   
                   <td className="p-3">
                     {cliente
-                      ? `${cliente.nombre} ${cliente.ci}`
+                      ? `${cliente.nombre} `
                       : "Desconocido"}
                   </td>
                     <td className="p-3">
@@ -408,14 +435,14 @@ function HistorialVentasCliente() {
               <table className="min-w-full bg-white border rounded shadow">
                 <thead className="bg-blue text-white uppercase text-sm">
                   <tr>
-                    <th className="px-6 py-3 text-left text-black">
+                    <th className="px-6 py-3 text-left bg-blue text-white">
                       Producto
                     </th>
-                    <th className="px-6 py-3 text-left text-black">
+                    <th className="px-6 py-3 text-left bg-blue text-white">
                       Cantidad
                     </th>
-                    <th className="px-6 py-3 text-left text-black">Precio</th>
-                    <th className="px-6 py-3 text-left text-black">Total</th>
+                    <th className="px-6 py-3 text-left bg-blue text-white">Precio</th>
+                    <th className="px-6 py-3 text-left bg-blue text-white">Total</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -103,7 +103,7 @@ const DashboardHome: React.FC = () => {
   const fetchIngresosMensuales = async (year: number) => {
     setIsLoadingIngresos(true);
     try {
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Ventas/SumarTotalesPorMes?anio=${year}`);
+      const response = await fetch(`http://localhost:5000/api/Ventas/SumarTotalesPorMes?anio=${year}`);
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
@@ -133,52 +133,52 @@ const DashboardHome: React.FC = () => {
         await fetchIngresosMensuales(selectedYear);
 
         // Obtener productos activos
-        const responseProductos = await fetch("https://farmaciamontecinoweb.onrender.com/api/Productos/ListarProductosActivos");
+        const responseProductos = await fetch("http://localhost:5000/api/Productos/ListarProductosActivos");
         const dataProductos = await responseProductos.json();
         setProductos(dataProductos.length);
 
         // Obtener tipos de productos
-        const responseTipo = await fetch("https://farmaciamontecinoweb.onrender.com/api/Tipos/ListarTiposActivos");
+        const responseTipo = await fetch("http://localhost:5000/api/Tipos/ListarTiposActivos");
         const dataTipo = await responseTipo.json();
         setTipo(dataTipo);
 
         // Obtener presentaciones
-        const responsePresentacion = await fetch("https://farmaciamontecinoweb.onrender.com/api/Presentaciones");
+        const responsePresentacion = await fetch("http://localhost:5000/api/Presentaciones");
         const dataPresentacion = await responsePresentacion.json();
         setPresentacion(dataPresentacion);
 
         // Obtener laboratorios
-        const responseLaboratorios = await fetch("https://farmaciamontecinoweb.onrender.com/api/Laboratorios");
+        const responseLaboratorios = await fetch("http://localhost:5000/api/Laboratorios");
         const dataLaboratorios = await responseLaboratorios.json();
         setLaboratorios(dataLaboratorios);
 
         // Obtener usuarios activos
-        const responseUsuarios = await fetch("https://farmaciamontecinoweb.onrender.com/api/Usuarios/ListarUsuariosActivos");
+        const responseUsuarios = await fetch("http://localhost:5000/api/Usuarios/ListarUsuariosActivos");
         const dataUsuarios = await responseUsuarios.json();
         setUsuariosActivos(dataUsuarios.length);
 
         // Obtener clientes activos
-        const responseClientes = await fetch("https://farmaciamontecinoweb.onrender.com/api/Clientes/ListarClientesActivos");
+        const responseClientes = await fetch("http://localhost:5000/api/Clientes/ListarClientesActivos");
         const dataClientes = await responseClientes.json();
         setClientes(dataClientes.length);
 
         // Obtener ventas activas
-        const responseVentas = await fetch("https://farmaciamontecinoweb.onrender.com/api/Ventas/ListarVentasActivos");
+        const responseVentas = await fetch("http://localhost:5000/api/Ventas/ListarVentasActivos");
         const dataVentas = await responseVentas.json();
         setVentas(dataVentas.length);
 
         // Obtener productos con menor stock
-        const responseMenorStock = await fetch("https://farmaciamontecinoweb.onrender.com/api/Productos/listarProductosConMenorStockHome");
+        const responseMenorStock = await fetch("http://localhost:5000/api/Productos/listarProductosConMenorStockHome");
         const dataMenorStock = await responseMenorStock.json();
         setProductosConMenorStock(dataMenorStock);
 
         // Obtener productos más vendidos
-        const responseMasVendidos = await fetch("https://farmaciamontecinoweb.onrender.com/api/Detalle_Ventas/ProductosMasVendidos");
+        const responseMasVendidos = await fetch("http://localhost:5000/api/Detalle_Ventas/ProductosMasVendidos");
         const dataMasVendidos = await responseMasVendidos.json();
         setMasVendidosData(dataMasVendidos);
 
         // Obtener productos próximos a vencer
-        const responseProximosAVencer = await fetch("https://farmaciamontecinoweb.onrender.com/api/Productos/ProductosProximosAVencer");
+        const responseProximosAVencer = await fetch("http://localhost:5000/api/Productos/ProductosProximosAVencer");
         const dataProximosAVencer = await responseProximosAVencer.json();
         setProductosProximosAVencer(dataProximosAVencer);
 

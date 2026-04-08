@@ -46,7 +46,7 @@ const PharmacyUnits: React.FC = () => {
   useEffect(() => {
     const fetchUnits = async () => {
       try {
-        const response = await fetch('https://farmaciamontecinoweb.onrender.com/api/Presentaciones/ListarPresentacionesActivos');
+        const response = await fetch('http://localhost:5000/api/Presentaciones/ListarPresentacionesActivos');
         if (!response.ok) {
           throw new Error('Error al obtener las unidades');
         }
@@ -86,7 +86,7 @@ const PharmacyUnits: React.FC = () => {
       if (editMode) {
         // Update existing unit
         const response = await fetch(
-          `https://farmaciamontecinoweb.onrender.com/api/Presentaciones/Actualizar?id=${formData.id}&nombre=${formData.nombre}&nombreCorto=${formData.nombreCorto}`,
+          `http://localhost:5000/api/Presentaciones/Actualizar?id=${formData.id}&nombre=${formData.nombre}&nombreCorto=${formData.nombreCorto}`,
           {
             method: "PUT",
             headers: {
@@ -107,7 +107,7 @@ const PharmacyUnits: React.FC = () => {
       } else {
         // Create new unit
         const response = await fetch(
-          `https://farmaciamontecinoweb.onrender.com/api/Presentaciones/Crear?nombre=${formData.nombre}&nombreCorto=${formData.nombreCorto}`,
+          `http://localhost:5000/api/Presentaciones/Crear?nombre=${formData.nombre}&nombreCorto=${formData.nombreCorto}`,
           {
             method: "POST",
             headers: {
@@ -140,7 +140,7 @@ const PharmacyUnits: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Está seguro de eliminar esta unidad?')) {
       try {
-        const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Presentaciones/${id}`, {
+        const response = await fetch(`http://localhost:5000/api/Presentaciones/${id}`, {
           method: "DELETE",
         });
 

@@ -44,7 +44,7 @@ const Configuracion: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('https://farmaciamontecinoweb.onrender.com/api/Configuracions/ListarConfiguracionActivos');
+      const response = await fetch('http://localhost:5000/api/Configuracions/ListarConfiguracionActivos');
       if (!response.ok) {
         throw new Error('Error al obtener los datos');
       }

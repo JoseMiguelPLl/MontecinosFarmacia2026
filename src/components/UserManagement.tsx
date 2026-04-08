@@ -72,7 +72,7 @@ const UserManagement: React.FC = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const responseUsers = await fetch('https://farmaciamontecinoweb.onrender.com/api/Usuarios/ListarUsuariosActivos');
+        const responseUsers = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
         
         if (!responseUsers.ok) {
           throw new Error(`HTTP error! status: ${responseUsers.status}`);
@@ -89,12 +89,12 @@ const UserManagement: React.FC = () => {
         setFilteredUsers(dataUsers);
         
         // Similar validación para roles y permisos...
-        const responseRoles = await fetch('https://farmaciamontecinoweb.onrender.com/api/Roles/ListarRoles');
+        const responseRoles = await fetch('http://farmacia.local:3000/api/Roles/ListarRoles');
        
         const dataRoles = await responseRoles.json();
         setRoles(dataRoles);
   
-        const responsePermissions = await fetch('https://farmaciamontecinoweb.onrender.com/api/Permisos/ListarPermisos');
+        const responsePermissions = await fetch('http://farmacia.local:3000/api/Permisos/ListarPermisos');
     
         const dataPermissions = await responsePermissions.json();
         setPermissions(dataPermissions);
@@ -161,7 +161,7 @@ const UserManagement: React.FC = () => {
   const handlePermissionsClick = async (userId: number) => {
     setSelectedUserId(userId);
     try {
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
+      const response = await fetch(`http://farmacia.local:3000/api/Detalle_Permisos/ListarDetallePermisosActivosUsuario?id=${userId}`);
       
       if (!response.ok) {
         throw new Error('Error al obtener los permisos del usuario');
@@ -184,7 +184,7 @@ const UserManagement: React.FC = () => {
         Permisos: selectedPermissions
       };
 
-      const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Detalle_Permisos/Crear`, {
+      const response = await fetch(`http://localhost:5000/api/Detalle_Permisos/Crear`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -211,7 +211,7 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('https://farmaciamontecinoweb.onrender.com/api/Usuarios/ListarUsuariosActivos');
+      const response = await fetch('http://localhost:5000/api/Usuarios/ListarUsuariosActivos');
       if (!response.ok) {
         throw new Error('Error al obtener los usuarios');
       }
@@ -239,8 +239,8 @@ const UserManagement: React.FC = () => {
 
     try {
       const url = editMode
-        ? `https://farmaciamontecinoweb.onrender.com/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
-        : `https://farmaciamontecinoweb.onrender.com/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
+        ? `http://farmacia.local:3000/api/Usuarios/Actualizar?id=${formData.id}&nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`
+        : `http://farmacia.local:3000/api/Usuarios/Crear?nombre=${formData.nombre}&correo=${formData.correo}&usuarioNombre=${formData.usuarioNombre}&password=${formData.password}&estado=${formData.estado}&idrol=${formData.idrol}`;
 
       const response = await fetch(url, {
         method: editMode ? 'PUT' : 'POST',
@@ -264,7 +264,7 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Está seguro de eliminar este usuario?')) {
       try {
-        const response = await fetch(`https://farmaciamontecinoweb.onrender.com/api/Usuarios/${id}`, {
+        const response = await fetch(`http://farmacia.local:3000/api/Usuarios/${id}`, {
           method: 'DELETE'
         });
 
