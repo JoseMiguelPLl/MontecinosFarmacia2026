@@ -279,7 +279,7 @@ const ProductManagement: React.FC = () => {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Gestión de Productos</CardTitle>
+            <CardTitle>Gestión de Productoss</CardTitle>
           </CardHeader>
           <CardContent>
             {alert.show && (
