@@ -25,8 +25,8 @@ interface Product {
   idlaboratorio: number;
   idtipo: number;
   eliminado?: boolean;
-  precio_compra:number;
-  lote:string
+  precio_compra: number;
+  lote: string
 }
 
 interface Tipo {
@@ -68,7 +68,7 @@ const initialProductState: Partial<Product> = {
   idlaboratorio: 0,
   idtipo: 0,
   precio_compra: 0,
-  lote:''
+  lote: ''
 };
 
 // Componente principal
@@ -121,11 +121,11 @@ const ProductManagement: React.FC = () => {
   // Manejar cambios en los inputs del formulario
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     setFormData(prev => ({
       ...prev,
-      [name]: ['precio', 'stock', 'concentracion', 'casilla', 'idpresentacion', 'idlaboratorio', 'idtipo'].includes(name)
-        ? Number(value)
+      [name]: ['precio', 'stock', 'concentracion', 'casilla', 'idpresentacion', 'idlaboratorio', 'idtipo', 'precio_compra'].includes(name)
+        ? value === '' ? 0 : Number(value)
         : value
     }));
   };
@@ -157,27 +157,42 @@ const ProductManagement: React.FC = () => {
   // Manejar agregar nuevo producto
   const handleAgregar = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validación de campos requeridos
-    if (!formData.codigo || !formData.nombre || !formData.descripcion || !formData.precio || 
-        !formData.stock || !formData.vencimiento || !formData.idtipo || 
-        !formData.idlaboratorio || !formData.idpresentacion|| !formData.precio_compra|| !formData.lote ) {
-      showAlert("error", "Por favor complete todos los campos requeridos");
+
+    // Solo validamos los selectores que pediste obligatorios
+    if (!formData.idtipo || !formData.idlaboratorio || !formData.idpresentacion) {
+      showAlert("error", "Por favor seleccione el Tipo, Laboratorio y Presentación");
       return;
     }
 
+    // Preparar datos con S/D o 0 si están vacíos
+    const finalData = {
+      codigo: formData.codigo || 'S/D',
+      nombre: formData.nombre || 'S/D',
+      descripcion: formData.descripcion || 'S/D',
+      precio: formData.precio || 0,
+      stock: formData.stock || 0,
+      vencimiento: formData.vencimiento || '2000-01-01',
+      idtipo: formData.idtipo,
+      idlaboratorio: formData.idlaboratorio,
+      concentracion: formData.concentracion || 0,
+      casilla: formData.casilla || 0,
+      idpresentacion: formData.idpresentacion,
+      precio_compra: formData.precio_comp_ra || 0,
+      lote: formData.lote || 'S/D'
+    };
+
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Productos/Crear?codigo=${formData.codigo}&nombre=${formData.nombre}&descripcion=${formData.descripcion}&precio=${formData.precio}&stock=${formData.stock}&vencimiento=${formData.vencimiento}&idtipo=${formData.idtipo}&idlaboratorio=${formData.idlaboratorio}&concentracion=${formData.concentracion}&casilla=${formData.casilla}&idpresentacion=${formData.idpresentacion}&precio_compra=${formData.precio_compra}&lote=${formData.lote}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(finalData),
         }
       );
-      
+
       if (response.ok) {
         const newProduct = await response.json();
         setProducts([...products, newProduct]);
@@ -195,32 +210,43 @@ const ProductManagement: React.FC = () => {
   // Manejar actualización de producto
   const handleActualizar = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!editProducto?.id) {
       showAlert("error", "No hay producto seleccionado para editar");
       return;
     }
 
+    // Preparar valores predeterminados para actualización
+    const finalCodigo = formData.codigo || 'S/D';
+    const finalNombre = formData.nombre || 'S/D';
+    const finalDescripcion = formData.descripcion || 'S/D';
+    const finalPrecio = formData.precio?.toString() || '0';
+    const finalStock = formData.stock?.toString() || '0';
+    const finalConc = formData.concentracion?.toString() || '0';
+    const finalCasilla = formData.casilla?.toString() || '0';
+    const finalVenc = formData.vencimiento || '2000-01-01';
+    const finalLote = formData.lote || 'S/D';
+    const finalPrecioCompra = formData.precio_compra?.toString() || '0';
+
     try {
       const params = new URLSearchParams();
       params.append('id', editProducto.id.toString());
-      params.append('codigo', formData.codigo || '');
-      params.append('nombre', formData.nombre || '');
-      params.append('descripcion', formData.descripcion || '');
-      params.append('precio', formData.precio?.toString() || '0');
-      params.append('stock', formData.stock?.toString() || '0');
-      params.append('concentracion', formData.concentracion?.toString() || '0');
-      params.append('casilla', formData.casilla?.toString() || '0');
-      params.append('vencimiento', formData.vencimiento || '');
+      params.append('codigo', finalCodigo);
+      params.append('nombre', finalNombre);
+      params.append('descripcion', finalDescripcion);
+      params.append('precio', finalPrecio);
+      params.append('stock', finalStock);
+      params.append('concentracion', finalConc);
+      params.append('casilla', finalCasilla);
+      params.append('vencimiento', finalVenc);
       params.append('idpresentacion', formData.idpresentacion?.toString() || '0');
       params.append('idlaboratorio', formData.idlaboratorio?.toString() || '0');
       params.append('idtipo', formData.idtipo?.toString() || '0');
-       params.append('precio_compra', formData.precio_compra?.toString() || '0');
-       params.append('lote', formData.lote || '');
-
+      params.append('precio_compra', finalPrecioCompra);
+      params.append('lote', finalLote);
 
       const url = `http://localhost:5000/api/Productos/Actualizar?${params.toString()}`;
-      
+
       const response = await fetch(url, {
         method: "PUT",
         headers: {
@@ -234,10 +260,9 @@ const ProductManagement: React.FC = () => {
       }
 
       const updatedProduct = await response.json();
-      
-      // Actualizar el estado local
+
       setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-      
+
       showAlert('success', 'Producto actualizado correctamente');
       handleReset();
     } catch (error) {
@@ -258,10 +283,10 @@ const ProductManagement: React.FC = () => {
   };
 
   // Lógica de búsqueda y filtrado
-  const filteredProductos = products.filter(product => 
+  const filteredProductos = products.filter(product =>
     !product.eliminado &&
     (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     product.codigo.toLowerCase().includes(searchTerm.toLowerCase()))
+      product.codigo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Lógica de paginación
@@ -292,12 +317,12 @@ const ProductManagement: React.FC = () => {
               </Alert>
             )}
 
-        <form onSubmit={editProducto ? handleActualizar : handleAgregar} className="product-form">
+            <form onSubmit={editProducto ? handleActualizar : handleAgregar} className="product-form">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* Código de Barras */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Código de Barras 
+                    Código de Barras
                   </label>
                   <input
                     type="text"
@@ -306,14 +331,13 @@ const ProductManagement: React.FC = () => {
                     onChange={handleInputChange}
                     className="form-input"
                     placeholder="Ingrese código de barras"
-                    required
                   />
                 </div>
 
                 {/* Nombre del Producto */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Producto 
+                    Producto
                   </label>
                   <input
                     type="text"
@@ -322,7 +346,6 @@ const ProductManagement: React.FC = () => {
                     onChange={handleInputChange}
                     className="form-input"
                     placeholder="Ingrese nombre del Producto"
-                    required
                   />
                 </div>
 
@@ -337,14 +360,13 @@ const ProductManagement: React.FC = () => {
                     onChange={handleInputChange}
                     className="form-input h-32 resize-none"
                     placeholder="Ingrese descripción"
-                    required
                   />
                 </div>
 
-                {/* Tipo */}
+                {/* Tipo - OBLIGATORIO */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Tipo 
+                    Tipo
                   </label>
                   <select
                     name="idtipo"
@@ -365,23 +387,22 @@ const ProductManagement: React.FC = () => {
                 {/* Concentración */}
                 <div className="form-group space-y-1">
                   <label className="block text-sm font-medium text-black text-center">
-                    Concentración 
+                    Concentración
                   </label>
-                  <input 
+                  <input
                     type="text"
                     name="concentracion"
                     value={formData.concentracion || 0}
                     onChange={handleInputChange}
                     className="form-input2"
                     placeholder="N"
-                    required
                   />
                 </div>
 
-                {/* Presentación */}
+                {/* Presentación - OBLIGATORIO */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Presentación 
+                    Presentación
                   </label>
                   <select
                     name="idpresentacion"
@@ -399,10 +420,10 @@ const ProductManagement: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Laboratorio */}
+                {/* Laboratorio - OBLIGATORIO */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Laboratorio 
+                    Laboratorio
                   </label>
                   <select
                     name="idlaboratorio"
@@ -420,41 +441,40 @@ const ProductManagement: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Precio */}
-                <div className="form-group space-y-2">
-                  <label className="block text-sm font-medium text-black text-center">
-                    Precio Venta
-                  </label>
-                  <input
-                    type="Text"
-                    name="precio"
-                    value={formData.precio || 0}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    placeholder="Ingrese precio"
-                    required
-                  />
-                </div>
-                     {/* Precio */}
+                {/* Precio Compra */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
                     Precio Compra
                   </label>
                   <input
-                    type="Text"
+                    type="text"
                     name="precio_compra"
                     value={formData.precio_compra || 0}
                     onChange={handleInputChange}
                     className="form-input"
-                    placeholder="Ingrese precio"
-                    required
+                    placeholder="Ingrese precio compra"
+                  />
+                </div>
+
+                {/* Precio Venta (REUBICADO DESPUÉS DE COMPRA) */}
+                <div className="form-group space-y-2">
+                  <label className="block text-sm font-medium text-black text-center">
+                    Precio Venta
+                  </label>
+                  <input
+                    type="text"
+                    name="precio"
+                    value={formData.precio || 0}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    placeholder="Ingrese precio venta"
                   />
                 </div>
 
                 {/* Stock */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Stock 
+                    Stock
                   </label>
                   <input
                     type="text"
@@ -463,44 +483,43 @@ const ProductManagement: React.FC = () => {
                     onChange={handleInputChange}
                     className="form-input"
                     placeholder="Ingrese stock"
-                    required
                   />
                 </div>
-{/* Lote */}
-<div className="form-group space-y-2">
-  <label className="block text-sm font-medium text-black text-center">
-    Lote
-  </label>
-  <input
-    type="text"
-    name="lote"
-    value={formData.lote || ''}
-    onChange={handleInputChange}
-    className="form-input"
-    placeholder="Ingrese lote"
-    required
-  />
-</div>
+
+                {/* Lote */}
+                <div className="form-group space-y-2">
+                  <label className="block text-sm font-medium text-black text-center">
+                    Lote
+                  </label>
+                  <input
+                    type="text"
+                    name="lote"
+                    value={formData.lote || ''}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    placeholder="Ingrese lote"
+                  />
+                </div>
+
                 {/* Casilla */}
                 <div className="form-group space-y-1">
                   <label className="block text-sm font-medium text-black text-center">
-                    Casilla 
+                    Casilla
                   </label>
-                  <input  
+                  <input
                     type="text"
                     name="casilla"
                     value={formData.casilla || 0}
                     onChange={handleInputChange}
                     className="form-input2"
                     placeholder="N"
-                    required
                   />
                 </div>
 
                 {/* Fecha de Vencimiento */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
-                    Fecha de Vencimiento 
+                    Fecha de Vencimiento
                   </label>
                   <input
                     type="date"
@@ -508,24 +527,23 @@ const ProductManagement: React.FC = () => {
                     value={formData.vencimiento || ''}
                     onChange={handleInputChange}
                     className="form-input"
-                    required
                   />
                 </div>
 
                 {/* Botones */}
                 <div className="form-group flex flex-col space-y-4 mt-8 text-center col-span-full">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn-primary"
-                    style={{background: 'blue'}}
+                    style={{ background: 'blue' }}
                   >
                     {editProducto ? "Actualizar Producto" : "Registrar Producto"}
                   </button>
-                  <button 
-                    type="submit"
+                  <button
+                    type="button"
                     onClick={handleReset}
                     className="btn-primary"
-                    style={{background: 'blue'}}
+                    style={{ background: 'blue' }}
                   >
                     Nuevo
                   </button>
