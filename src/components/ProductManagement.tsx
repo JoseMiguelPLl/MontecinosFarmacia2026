@@ -119,15 +119,30 @@ const ProductManagement: React.FC = () => {
   }, []);
 
   // Manejar cambios en los inputs del formulario
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // Convertimos el valor: reemplazamos coma por punto para que siempre sea decimal válido
+    const sanitizedValue = value.replace(',', '.');
+    const numValue = sanitizedValue === '' ? 0 : Number(sanitizedValue);
 
-    setFormData(prev => ({
-      ...prev,
-      [name]: ['precio', 'stock', 'concentracion', 'casilla', 'idpresentacion', 'idlaboratorio', 'idtipo', 'precio_compra'].includes(name)
-        ? value === '' ? 0 : Number(value)
-        : value
-    }));
+    setFormData(prev => {
+      const newState = {
+        ...prev,
+        [name]: ['precio', 'stock', 'concentracion', 'casilla', 'idpresentacion', 'idlaboratorio', 'idtipo', 'precio_compra'].includes(name)
+          ? numValue
+          : value
+      };
+
+      // Si cambia el precio de compra, sugerimos el 30% con decimales
+      if (name === 'precio_compra') {
+        const sugerenciaVenta = numValue * 1.30;
+        // Redondeamos a 2 decimales para que 2.50 + 30% sea 3.25 exactamente
+        newState.precio = Number(sugerenciaVenta.toFixed(2));
+      }
+
+      return newState;
+    });
   };
 
   // Manejar edición de producto
@@ -483,35 +498,30 @@ const ProductManagement: React.FC = () => {
                 </div>
 
                 {/* Precio Compra */}
-                <div className="form-group space-y-2">
-                  <label className="block text-sm font-medium text-black text-center">
-                    Precio Compra
-                  </label>
-                  <input
-                    type="text"
-                    name="precio_compra"
-                    value={formData.precio_compra || 0}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    placeholder="Ingrese precio compra"
-                  />
-                </div>
+<div className="form-group space-y-2">
+  <label className="block text-sm font-medium text-black text-center">Precio Compra</label>
+  <input
+    type="text"
+    name="precio_compra"
+    value={formData.precio_compra || ''} // Usamos '' si es 0 para que sea más fácil borrar
+    onChange={handleInputChange}
+    className="form-input"
+    placeholder="0.00"
+  />
+</div>
 
-                {/* Precio Venta (REUBICADO DESPUÉS DE COMPRA) */}
-                <div className="form-group space-y-2">
-                  <label className="block text-sm font-medium text-black text-center">
-                    Precio Venta
-                  </label>
-                  <input
-                    type="text"
-                    name="precio"
-                    value={formData.precio || 0}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    placeholder="Ingrese precio venta"
-                  />
-                </div>
-
+{/* Precio Venta */}
+<div className="form-group space-y-2">
+  <label className="block text-sm font-medium text-black text-center">Precio Venta</label>
+  <input
+    type="text"
+    name="precio"
+    value={formData.precio || ''}
+    onChange={handleInputChange}
+    className="form-input"
+    placeholder="0.00"
+  />
+</div>
                 {/* Stock */}
                 <div className="form-group space-y-2">
                   <label className="block text-sm font-medium text-black text-center">
