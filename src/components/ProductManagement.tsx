@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Trash2, Edit2, Search } from "lucide-react";
+import { Trash2, Edit2, Search, CheckCircle, AlertCircle } from "lucide-react";
 import NavBarRoot from "./NavBarRoot";
 import {
   Card,
@@ -145,12 +145,12 @@ const ProductManagement: React.FC = () => {
 
       if (response.ok) {
         setProducts(prev => prev.filter(product => product.id !== id));
-        showAlert('success', 'Producto eliminado correctamente');
+        showModal('success', 'Producto eliminado correctamente');
       } else {
         throw new Error('Error al eliminar el producto');
       }
     } catch (error) {
-      showAlert("error", "Error al eliminar el producto");
+      showModal("error", "Error al eliminar el producto");
     }
   };
 
@@ -160,7 +160,7 @@ const ProductManagement: React.FC = () => {
 
     // Solo validamos los selectores que pediste obligatorios
     if (!formData.idtipo || !formData.idlaboratorio || !formData.idpresentacion) {
-      showAlert("error", "Por favor seleccione el Tipo, Laboratorio y Presentación");
+      showModal("error", "Por favor seleccione el Tipo, Laboratorio y Presentación");
       return;
     }
 
@@ -177,7 +177,7 @@ const ProductManagement: React.FC = () => {
       concentracion: formData.concentracion || 0,
       casilla: formData.casilla || 0,
       idpresentacion: formData.idpresentacion,
-      precio_compra: formData.precio_comp_ra || 0,
+      precio_compra: formData.precio_compra || 0,
       lote: formData.lote || 'S/D'
     };
 
@@ -196,14 +196,14 @@ const ProductManagement: React.FC = () => {
       if (response.ok) {
         const newProduct = await response.json();
         setProducts([...products, newProduct]);
-        showAlert('success', 'Producto agregado correctamente');
+        showModal('success', 'Producto agregado correctamente');
         handleReset();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al agregar el producto');
       }
     } catch (error) {
-      showAlert("error", error instanceof Error ? error.message : "Error al agregar el producto");
+      showModal("error", error instanceof Error ? error.message : "Error al agregar el producto");
     }
   };
 
@@ -212,7 +212,7 @@ const ProductManagement: React.FC = () => {
     e.preventDefault();
 
     if (!editProducto?.id) {
-      showAlert("error", "No hay producto seleccionado para editar");
+      showModal("error", "No hay producto seleccionado para editar");
       return;
     }
 
@@ -263,10 +263,10 @@ const ProductManagement: React.FC = () => {
 
       setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
 
-      showAlert('success', 'Producto actualizado correctamente');
+      showModal('success', 'Producto actualizado correctamente');
       handleReset();
     } catch (error) {
-      showAlert('error', error instanceof Error ? error.message : 'Error al actualizar el producto');
+      showModal('error', error instanceof Error ? error.message : 'Error al actualizar el producto');
     }
   };
 
@@ -299,9 +299,50 @@ const ProductManagement: React.FC = () => {
     setCurrentPage(pageNumber);
   };
 
+  // --- AÑADIR ESTO DESPUÉS DE setCurrentPage ---
+  const [modalStatus, setModalStatus] = useState<{ show: boolean, type: 'success' | 'error', message: string }>({
+    show: false,
+    type: 'success',
+    message: ''
+  });
+
+  // Función para disparar el modal
+  const showModal = (type: 'success' | 'error', message: string) => {
+    setModalStatus({ show: true, type, message });
+  };
+ 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen relative">
       <NavBarRoot />
+      
+      {/* --- AÑADIR ESTE BLOQUE AQUÍ --- */}
+      {modalStatus.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border-t-8 border-blue animate-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {modalStatus.type === 'success' ? (
+                <div className="bg-green-100 p-4 rounded-full mb-4">
+                  <CheckCircle className="w-12 h-12 text-green-600" />
+                </div>
+              ) : (
+                <div className="bg-red-100 p-4 rounded-full mb-4">
+                  <AlertCircle className="w-12 h-12 text-red-600" />
+                </div>
+              )}
+              <h3 className={`text-2xl font-bold mb-2 ${modalStatus.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
+                {modalStatus.type === 'success' ? '¡Excelente!' : 'Atención'}
+              </h3>
+              <p className="text-gray-600 font-medium mb-6">{modalStatus.message}</p>
+              <button 
+                onClick={() => setModalStatus({ ...modalStatus, show: false })}
+                className="w-full bg-blue text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all"
+              >
+                ENTENDIDO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="p-4 flex-1 overflow-auto">
         <div className="flex flex-col items-center justify-center bg-blue text-white -mr-6 -ml-6 -mt-8 mb-7">
           <h2 className="text-3xl font-bold py-8">Productos</h2>
