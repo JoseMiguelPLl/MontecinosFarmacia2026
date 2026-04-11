@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Lock, User } from 'lucide-react';
 
 const Login: React.FC = () => {
     const [correo, setEmail] = useState('');
@@ -17,22 +18,17 @@ const Login: React.FC = () => {
 
         try {
             const urlCliente = `http://localhost:5000/api/Usuarios/Login?correo=${correo}&password=${password}`;
-            const urlEmpleado = `http://localhost:5000/api/Usuarios/Login??correo=${correo}&password=${password}`;
+            const urlEmpleado = `http://localhost:5000/api/Usuarios/Login?correo=${correo}&password=${password}`;
 
             const responseCliente = await fetch(urlCliente, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
 
             if (!responseCliente.ok) {
-                // If the first API fails, try the second API
                 const responseEmpleado = await fetch(urlEmpleado, {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                 });
 
                 if (!responseEmpleado.ok) {
@@ -40,34 +36,22 @@ const Login: React.FC = () => {
                     throw new Error(errorData.message || 'Credenciales incorrectas');
                 }
 
-                // Parseamos la respuesta
+                // LÓGICA DE EMPLEADO
                 const dataEmpleado = await responseEmpleado.json();
-                console.log(dataEmpleado); // Agrega este log para inspeccionar la respuesta
-
-                // Guardamos los datos del usuario en localStorage
-                localStorage.setItem('userId', dataEmpleado.id); // Asegúrate de que 'id' exista en la respuesta
-                localStorage.setItem('userName', dataEmpleado.nombre); // Asegúrate de que 'nombre' exista en la respuesta
-
-                // Limpiamos los campos de email y password
+                localStorage.setItem('userId', dataEmpleado.id);
+                localStorage.setItem('userName', dataEmpleado.nombre);
+                
                 setEmail('');
                 setPassword('');
-
-                // Redirigimos a la página principal o home después del login exitoso
                 navigate('/home');
             } else {
-                // Parseamos la respuesta
+                // LÓGICA DE CLIENTE
                 const dataCliente = await responseCliente.json();
-                console.log(dataCliente); // Agrega este log para inspeccionar la respuesta
+                localStorage.setItem('userId', dataCliente.id);
+                localStorage.setItem('userName', dataCliente.nombre);
 
-                // Guardamos los datos del usuario en localStorage
-                localStorage.setItem('userId', dataCliente.id); // Asegúrate de que 'id' exista en la respuesta
-                localStorage.setItem('userName', dataCliente.nombre); // Asegúrate de que 'nombre' exista en la respuesta
-
-                // Limpiamos los campos de email y password
                 setEmail('');
                 setPassword('');
-
-                // Redirigimos a la página principal o home después del login exitoso
                 navigate('/home');
             }
         } catch (err) {
@@ -77,49 +61,98 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen" style={{ backgroundImage: "url('fondo.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
-            <div className="flex flex-col items-center justify-center h-4/5 w-1/3  bg-gray bg-opacity-60 p-24 rounded-lg">
-                <h1 className="text-3xl font-bold mb-4 text-white">INICIO DE SESIÓN</h1>
-                <form 
-  onSubmit={manejarEnvio} 
-  className="shadow-md rounded px-8 py-6 w-80 bg-transparent"
-  autoComplete="off" // Paso 1: Atributo estándar en el form
->
-  {/* Campo trampa oculto: Los navegadores a menudo autocompletan el primer par de inputs que encuentran */}
-  <input type="text" style={{ display: 'none' }} name="fake-user" />
-  <input type="password" style={{ display: 'none' }} name="fake-password" />
+        <div 
+            className="flex items-center justify-center min-h-screen bg-no-repeat bg-cover bg-center"
+            style={{ 
+                backgroundImage: "url('/fondo.jpg')",
+                fontFamily: "'Inter', 'Segoe UI', Roboto, sans-serif" 
+            }}
+        >
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"></div>
 
+            <div className="relative z-10 flex flex-col items-center justify-center backdrop-blur-xl bg-white/10 p-12 rounded-[32px] shadow-2xl border border-white/20 w-full max-w-md mx-4">
+                
+                <h1 
+                    className="text-4xl font-extrabold mb-2 text-center tracking-tight text-white uppercase"
+                    style={{ textShadow: '0 4px 12px rgba(33, 28, 115, 0.6)' }}
+                >
+                    Inicio de Sesión
+                </h1>
+                <div className="w-12 h-1 bg-[#265FFF] rounded-full mb-10 shadow-[0_0_15px_rgba(38,95,255,0.8)]"></div>
+
+                <form onSubmit={manejarEnvio} className="w-full" autoComplete="off">
+                    {/* Trampas para autocompletado */}
+                    <input type="text" style={{ display: 'none' }} name="fake-user" />
+                    <input type="password" style={{ display: 'none' }} name="fake-password" />
+
+                    {/* Input Usuario */}
+              {/* Input Usuario */}
+                    <div className="relative mb-6 group">
+                        {/* Icono posicionado correctamente y centrado verticalmente */}
   <input
-    type="text"
-    placeholder="Usuario"
-    name="no-autocomplete-user" // Paso 2: Usar un nombre que no sea 'username', 'email' o 'user'
-    autoComplete="new-password" // Paso 3: Este es el truco más efectivo hoy en día
-    value={correo}
-    onChange={(e) => setEmail(e.target.value)}
-    className="border border-gray-300 p-2 mb-4 w-full rounded transition-transform transform focus:scale-105 focus:outline-none"
-  />
+                            type="text"
+                            placeholder="Usuario"
+                            name="no-autocomplete-user"
+                            autoComplete="new-password"
+                            value={correo}
+                            onChange={(e) => setEmail(e.target.value)}
+                            // pl-12 (padding-left) asegura que el texto no toque el icono
+                            className="relative w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 outline-none transition-all focus:border-[#265FFF] focus:ring-2 focus:ring-[#265FFF]/20 focus:bg-white/20 z-0"
+                        />
+                    </div>
 
-  <input
-    type="password"
-    placeholder="Contraseña"
-    name="no-autocomplete-pass" // Paso 2: Evitar el nombre 'password'
-    autoComplete="new-password" // Paso 3: Obliga al navegador a tratarlo como campo nuevo y no guardado
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    className="border border-gray-300 p-2 mb-4 w-full rounded transition-transform transform focus:scale-105 focus:outline-none"
-  />
+                    {/* Input Contraseña */}
+                    <div className="relative mb-10 group">
+                        {/* Icono posicionado correctamente y centrado verticalmente */}
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-[#265FFF] transition-colors pointer-events-none z-10" />
+                        <input
+                            type="password"
+                            placeholder="Contraseña"
+                            name="no-autocomplete-pass"
+                            autoComplete="new-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            // pl-12 (padding-left) asegura que el texto no toque el icono
+                            className="relative w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 outline-none transition-all focus:border-[#265FFF] focus:ring-2 focus:ring-[#265FFF]/20 focus:bg-white/20 z-0"
+                        />
+                    </div>
 
-  <button 
-    style={{ background: 'blue' }} 
-    type="submit" 
-    className="text-white p-2 rounded hover:opacity-90 w-full transition-colors font-bold"
-  >
-    Iniciar Sesión
-  </button>
-  
-  {error && <p className="text-white mt-4">{error}</p>}
-</form>
+                    {/* Botón Estilo WelcomeScreen (Azul Sólido #211C73) */}
+                    <button 
+                        type="submit" 
+                        className="w-full py-4 rounded-2xl font-bold text-lg tracking-widest transition-all duration-300 ease-in-out uppercase flex items-center justify-center outline-none focus:ring-2 focus:ring-[#211C73] focus:ring-offset-2 focus:ring-offset-white"
+                        style={{ 
+                            background: '#211C73',
+                            border: 'none',
+                            color: '#FFFFFF',
+                            boxShadow: '0 8px 20px -5px rgba(33, 28, 115, 0.6)',
+                            cursor: 'pointer'
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.background = '#2a248f'; 
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 12px 25px -5px rgba(33, 28, 115, 0.7)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.background = '#211C73';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px -5px rgba(33, 28, 115, 0.6)';
+                        }}
+                    >
+                        Ingresar
+                    </button>
+                    
+                    {error && (
+                        <div className="mt-8 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-center">
+                            <p className="text-white text-sm font-semibold">{error}</p>
+                        </div>
+                    )}
+                </form>
             </div>
+            
+            <p className="absolute bottom-8 text-white/30 text-xs tracking-[4px] uppercase font-light">
+                Farmacia Montecinos 2026
+            </p>
         </div>
     );
 };
