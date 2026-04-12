@@ -233,7 +233,7 @@ const ProductManagement: React.FC = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}&nombre_generico${finalData.nombre_generico}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}&nombre_generico=${finalData.nombre_generico}`,
         {
           method: "POST",
           headers: {
