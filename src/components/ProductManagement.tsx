@@ -26,7 +26,8 @@ interface Product {
   idtipo: number;
   eliminado?: boolean;
   precio_compra: number;
-  lote: string
+  lote: string;
+  nombre_generico:string
 }
 
 interface Tipo {
@@ -68,7 +69,8 @@ const initialProductState: Partial<Product> = {
   idlaboratorio: 0,
   idtipo: 0,
   precio_compra: 0,
-  lote: ''
+  lote: '',
+  nombre_generico:''
 };
 
 // Componente principal
@@ -193,12 +195,13 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       casilla: formData.casilla || 0,
       idpresentacion: formData.idpresentacion,
       precio_compra: formData.precio_compra || 0,
-      lote: formData.lote || 'S/D'
+      lote: formData.lote || 'S/D',
+      nombre_generico:formData.nombre_generico ||'S/D'
     };
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}&nombre_generico${finalData.nombre_generico}`,
         {
           method: "POST",
           headers: {
@@ -241,6 +244,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     const finalCasilla = formData.casilla?.toString() || '0';
     const finalVenc = formData.vencimiento || '2000-01-01';
     const finalLote = formData.lote || 'S/D';
+    const finalnombre_generico=formData.nombre_generico ||'S/D'
     const finalPrecioCompra = formData.precio_compra?.toString() || '0';
 
     try {
@@ -258,7 +262,8 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       params.append('idlaboratorio', formData.idlaboratorio?.toString() || '0');
       params.append('idtipo', formData.idtipo?.toString() || '0');
       params.append('precio_compra', finalPrecioCompra);
-      params.append('lote', finalLote);
+      params.append('lote', finalLote); 
+      params.append('nombre_generico', finalnombre_generico);
 
       const url = `http://localhost:5000/api/Productos/Actualizar?${params.toString()}`;
 
@@ -634,6 +639,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Cód.</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Lote</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Nombre</th>
+        <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">N.Generico</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[15%]">Descripción</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[8%]">Tipo</th>
         <th style={{background:'blue'}} className="px-2 py-2 text-left w-[12%]">Present.</th>
@@ -683,7 +689,13 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   {product.nombre}
                 </div>
               </td>
-
+ {/* Celda Nombre con Tooltip */}
+              <td className="px-2 py-1.5 border-r relative group">
+                <span className="truncate block cursor-help">{product.nombre_generico}</span>
+                <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                  {product.nombre_generico}
+                </div>
+              </td>
               {/* Celda Descripción con Tooltip */}
               <td className="px-2 py-1.5 border-r relative group">
                 <span className="truncate block cursor-help">{product.descripcion}</span>
