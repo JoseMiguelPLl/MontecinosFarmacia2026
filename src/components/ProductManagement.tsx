@@ -128,43 +128,28 @@ const ProductManagement: React.FC = () => {
 
     fetchData();
   }, []);
-
-  // Manejar cambios en los inputs del formulario
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
+  
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
-    // Convertimos el valor: reemplazamos coma por punto para que siempre sea decimal válido
+    // Sanitización para permitir decimales fluidos
     const sanitizedValue = value.replace(",", ".");
-    const numValue = sanitizedValue === "" ? 0 : Number(sanitizedValue);
 
-    setFormData((prev) => {
+    setFormData((prev: any) => {
       const newState = {
         ...prev,
-        [name]: [
-          "precio",
-          "stock",
-          "concentracion",
-          "casilla",
-          "idpresentacion",
-          "idlaboratorio",
-          "idtipo",
-          "precio_compra",
-        ].includes(name)
-          ? numValue
+        [name]: ["precio", "stock", "concentracion", "casilla", "idpresentacion", "idlaboratorio", "idtipo", "precio_compra"].includes(name)
+          ? sanitizedValue // Guardamos como texto para permitir el "." mientras se escribe
           : value,
       };
 
-      // Si cambia el precio de compra, sugerimos el 30% con decimales
       if (name === "precio_compra") {
-        const sugerenciaVenta = numValue * 1.3;
-        // Redondeamos a 2 decimales para que 2.50 + 30% sea 3.25 exactamente
-        newState.precio = Number(sugerenciaVenta.toFixed(2));
+        const numValue = sanitizedValue === "" ? 0 : Number(sanitizedValue);
+        if (!isNaN(numValue) && numValue !== 0) {
+          const sugerenciaVenta = numValue * 1.3;
+          newState.precio = sugerenciaVenta.toFixed(2);
+        }
       }
-
       return newState;
     });
   };
