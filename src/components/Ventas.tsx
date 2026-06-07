@@ -71,10 +71,7 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
-  nombre_generico: string;
-  vencimiento?: string;
-  diasParaVencer?: number;
-  DiasParaVencer?: number;
+ nombre_generico: string;
 }
 
 interface Tipo {
@@ -361,7 +358,7 @@ const hoy = new Date().toISOString().split("T")[0];
         const totalProducto = cantidad * producto.precio;
 
         const queryParamsDetalle = new URLSearchParams({
-          amount: cantidad.toString(),
+          cantidad: cantidad.toString(),
           descuento: "0",
           precio: producto.precio.toString(),
           total: totalProducto.toString(),
@@ -561,21 +558,21 @@ const hoy = new Date().toISOString().split("T")[0];
     ? usuarios.filter(
       (usuario) =>
         !usuario.eliminado &&
-        (usuario.ci?.toLowerCase() || "").includes(search.toLowerCase()) ||
-        (usuario.nombre?.toLowerCase() || "").includes(search.toLowerCase())
+        usuario.ci.toLowerCase().includes(search.toLowerCase()) ||
+        usuario.nombre.toLowerCase().includes(search.toLowerCase())
     )
     : [];
 
-  const filteredProducto = searchProducto
-    ? producto.filter(
-        (producto) =>
-          !producto.eliminado &&
-          ((producto.nombre?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-            (producto.codigo?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-            (producto.nombre_generico?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-            (producto.descripcion?.toLowerCase() || "").includes(searchProducto.toLowerCase()))
-      )
-    : [];
+const filteredProducto = searchProducto
+  ? producto.filter(
+      (producto) =>
+        !producto.eliminado &&
+        (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
+    )
+  : [];
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -886,7 +883,6 @@ const hoy = new Date().toISOString().split("T")[0];
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Lab.</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Tipo</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Present.</th>
-                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Días Venc.</th> {/* Nueva Columna en Posición Correcta */}
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Stock</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Casilla</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio</th>
@@ -900,15 +896,12 @@ const hoy = new Date().toISOString().split("T")[0];
                           (lab) => lab.id === producto.idlaboratorio
                         )?.laboratorioNombre || "N/A";
                       const tipoNombre =
-                        tipo.find((t) => t.id === producto.idtipo)?.nombre ||
+                        presentacion.find((t) => t.id === producto.idpresentacion)?.nombre ||
                         "N/A";
                       const presentacionNombre =
                         presentacion.find(
                           (pres) => pres.id === producto.idpresentacion
                         )?.nombreCorto || "N/A";
-
-                      // Extraer de manera segura los días calculados desde tu backend C#
-                      const diasRestantes = producto.diasParaVencer !== undefined ? producto.diasParaVencer : producto.DiasParaVencer;
 
                       return (
                         <motion.tr
@@ -936,22 +929,6 @@ const hoy = new Date().toISOString().split("T")[0];
                           <td className="px-2 py-1.5 text-left max-w-[70px] truncate" title={`${producto.concentracion} ${presentacionNombre}`}>
                             {producto.concentracion && `${producto.concentracion} ${presentacionNombre}`}
                           </td>
-                          
-                          {/* Celda de días restantes alineada exactamente con su respectiva cabecera */}
-                          <td className="px-2 py-1.5 text-center font-semibold">
-                            {diasRestantes !== undefined && diasRestantes !== null ? (
-                              diasRestantes <= 0 ? (
-                                <span className="text-red-600 font-bold">Vencido</span>
-                              ) : diasRestantes <= 30 ? (
-                                <span className="text-yellow-600">{diasRestantes} d</span>
-                              ) : (
-                                <span className="text-green-600">{diasRestantes} d</span>
-                              )
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-
                           <td className="px-2 py-1.5 text-center">{producto.stock}</td>
                           <td className="px-2 py-1.5 text-center">{producto.casilla}</td>
                           <td className="px-2 py-1.5 text-center">{producto.precio} Bs</td>
