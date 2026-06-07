@@ -99,7 +99,8 @@ const DashboardHome: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [isLoadingIngresos, setIsLoadingIngresos] = useState<boolean>(false);
 
-  // Estados para la paginación de productos próximos a vencer
+  // Estados nuevos para la paginación y filtros de la tabla de vencimientos
+  const [filtroVencimiento, setFiltroVencimiento] = useState<'todos' | 'vencidos' | 'proximos'>('todos');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
@@ -124,7 +125,6 @@ const DashboardHome: React.FC = () => {
       setIngresosMensuales(transformedData);
     } catch (error) {
       console.error("Error al obtener ingresos mensuales:", error);
-      // Puedes mostrar un mensaje de error al usuario si lo deseas
     } finally {
       setIsLoadingIngresos(false);
     }
@@ -352,22 +352,29 @@ const DashboardHome: React.FC = () => {
     return null;
   };
 
-  // Lógica de paginación para Productos próximos a vencer
+  // LÓGICA DE FILTRADO Y PAGINACIÓN PARA PRODUCTOS PRÓXIMOS A VENCER
+  const productosFiltrados = productosProximosAVencer.filter((producto) => {
+    if (filtroVencimiento === 'vencidos') {
+      return producto.diasParaVencer <= 0;
+    }
+    if (filtroVencimiento === 'proximos') {
+      return producto.diasParaVencer > 0;
+    }
+    return true; // 'todos'
+  });
+
+  const totalPages = Math.ceil(productosFiltrados.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProductosProximos = productosProximosAVencer.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(productosProximosAVencer.length / itemsPerPage);
+  const currentProductos = productosFiltrados.slice(indexOfFirstItem, indexOfLastItem);
 
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
   };
 
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+  const handleFilterChange = (nuevoFiltro: 'todos' | 'vencidos' | 'proximos') => {
+    setFiltroVencimiento(nuevoFiltro);
+    setCurrentPage(1); // Resetear a la primera página al cambiar filtro
   };
 
   return (
@@ -536,19 +543,54 @@ const DashboardHome: React.FC = () => {
           {/* Tabla de productos próximos a vencer */}
           <Card className="mb-8 rounded-2xl overflow-hidden border border-gray-200/80 shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b" style={{background:'#265FFF'}}>
-              <div className="flex items-center gap-3">
-                <div className="bg-red-100 p-2 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-white" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-red-100 p-2 rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-white">Productos Próximos a Vencer</CardTitle>
+                    <CardDescription className="text-sm">Monitoreo de estado de caducidad del inventario</CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold text-white">Productos Próximos a Vencer</CardTitle>
-                  <CardDescription className="text-sm">Productos que vencerán en los próximos 30 días</CardDescription>
+                {/* Botones de Filtro solicitados */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleFilterChange('todos')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border border-white/20 ${
+                      filtroVencimiento === 'todos' 
+                        ? 'bg-amber-400 text-gray-900 shadow' 
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Ver Todos
+                  </button>
+                  <button
+                    onClick={() => handleFilterChange('vencidos')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border border-white/20 ${
+                      filtroVencimiento === 'vencidos' 
+                        ? 'bg-amber-400 text-gray-900 shadow' 
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Solo Vencidos
+                  </button>
+                  <button
+                    onClick={() => handleFilterChange('proximos')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border border-white/20 ${
+                      filtroVencimiento === 'proximos' 
+                        ? 'bg-amber-400 text-gray-900 shadow' 
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Próximos a Vencer
+                  </button>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              {productosProximosAVencer.length > 0 ? (
-                <>
+              {currentProductos.length > 0 ? (
+                <div>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
@@ -562,13 +604,19 @@ const DashboardHome: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {currentProductosProximos.map((producto, index) => (
+                        {currentProductos.map((producto, index) => (
                           <tr key={producto.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="p-3 text-sm text-gray-700">{producto.nombre}</td>
                             <td className="p-3 text-sm text-gray-700">{producto.laboratorio}</td>
                             <td className="p-3 text-sm text-gray-700">{producto.presentacion}</td>
                             <td className="p-3 text-sm text-gray-700">{moment(producto.fechaVencimiento).format('DD/MM/YYYY')}</td>
-                            <td className="p-3 text-sm text-gray-700">{producto.diasParaVencer}</td>
+                            <td className="p-3 text-sm text-gray-700">
+                              {producto.diasParaVencer <= 0 ? (
+                                <span className="text-red-600 font-bold">Vencido ({Math.abs(producto.diasParaVencer)})</span>
+                              ) : (
+                                producto.diasParaVencer
+                              )}
+                            </td>
                             <td className={`p-3 text-sm ${getEstadoColor(producto.estado)}`}>
                               {producto.estado}
                             </td>
@@ -578,48 +626,33 @@ const DashboardHome: React.FC = () => {
                     </table>
                   </div>
 
-                  {/* Botones de Paginación */}
+                  {/* Botones de paginación (Siguiente / Anterior) */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-4 px-1">
-                      <div className="text-sm text-gray-500">
-                        Mostrando registros del <span className="font-semibold">{indexOfFirstItem + 1}</span> al{' '}
-                        <span className="font-semibold">
-                          {Math.min(indexOfLastItem, productosProximosAVencer.length)}
-                        </span>{' '}
-                        de un total de <span className="font-semibold">{productosProximosAVencer.length}</span>
+                    <div className="flex items-center justify-between mt-4 border-t pt-4">
+                      <div className="text-sm text-gray-600">
+                        Mostrando productos <span className="font-semibold">{indexOfFirstItem + 1}</span> al <span className="font-semibold">{Math.min(indexOfLastItem, productosFiltrados.length)}</span> de <span className="font-semibold">{productosFiltrados.length}</span>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex gap-2">
                         <button
-                          onClick={prevPage}
+                          onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className={`px-3 py-1.5 text-sm rounded-md font-medium border transition-colors ${
-                            currentPage === 1
-                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
+                          className="px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           Anterior
                         </button>
-                        <div className="text-sm font-medium text-gray-700">
-                          Página {currentPage} de {totalPages}
-                        </div>
                         <button
-                          onClick={nextPage}
+                          onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className={`px-3 py-1.5 text-sm rounded-md font-medium border transition-colors ${
-                            currentPage === totalPages
-                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
+                          className="px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           Siguiente
                         </button>
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               ) : (
-                <p className="text-center text-gray-500 py-4">No hay productos próximos a vencer en los próximos 90 días.</p>
+                <p className="text-center text-gray-500 py-4">No se encontraron productos con el filtro seleccionado.</p>
               )}
             </CardContent>
           </Card>
@@ -706,7 +739,7 @@ const DashboardHome: React.FC = () => {
                       data={masVendidosChartData}
                       cx="50%"
                       cy="50%"
-                    innerRadius={40}
+                      innerRadius={40}
                       outerRadius={70}
                       paddingAngle={2}
                       dataKey="value"
