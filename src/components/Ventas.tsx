@@ -71,11 +71,7 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
-  nombre_generico: string;
-  // --- AGREGA ESTOS 3 CAMPOS AQUÍ ---
-  vencimiento: string;     
-  diasParaVencer?: number;  
-  DiasParaVencer?: number;  
+ nombre_generico: string;
 }
 
 interface Tipo {
@@ -571,10 +567,10 @@ const filteredProducto = searchProducto
   ? producto.filter(
       (producto) =>
         !producto.eliminado &&
-        ((producto.nombre?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-          (producto.codigo?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-          (producto.nombre_generico?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
-          (producto.descripcion?.toLowerCase() || "").includes(searchProducto.toLowerCase()))
+        (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
     )
   : [];
 
@@ -880,21 +876,19 @@ const filteredProducto = searchProducto
 
               <div className="max-h-96 overflow-y-auto rounded-lg border">
                 <table className="w-full text-xs">
-              <thead className="bg-blue-600 text-white">
-  <tr>
-    <th className="px-2 py-1.5 text-left bg-blue font-medium">Producto</th>
-    <th className="px-2 py-1.5 text-left bg-blue font-medium">Descripción</th>
-    <th className="px-2 py-1.5 text-left bg-blue font-medium">Lab.</th>
-    <th className="px-2 py-1.5 text-left bg-blue font-medium">Tipo</th>
-    <th className="px-2 py-1.5 text-left bg-blue font-medium">Present.</th>
-    {/* --- AGREGAR ESTA LÍNEA AQUÍ --- */}
-    <th className="px-2 py-1.5 text-center bg-blue font-medium">Vencimiento</th> 
-    <th className="px-2 py-1.5 text-center bg-blue font-medium">Stock</th>
-    <th className="px-2 py-1.5 text-center bg-blue font-medium">Casilla</th>
-    <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio</th>
-    <th className="px-2 py-1.5 text-center bg-blue font-medium">Acción</th>
-  </tr>
-</thead>
+                  <thead className="bg-blue-600 text-white">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Producto</th>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Descripción</th>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Lab.</th>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Tipo</th>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Present.</th>
+                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Stock</th>
+                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Casilla</th>
+                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio</th>
+                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Acción</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredProducto.map((producto) => {
                       const laboratorioNombre =
@@ -908,7 +902,7 @@ const filteredProducto = searchProducto
                         presentacion.find(
                           (pres) => pres.id === producto.idpresentacion
                         )?.nombreCorto || "N/A";
-                 const diasRestantes = producto.diasParaVencer !== undefined ? producto.diasParaVencer : producto.DiasParaVencer;
+
                       return (
                         <motion.tr
                           key={producto.id}
@@ -935,19 +929,6 @@ const filteredProducto = searchProducto
                           <td className="px-2 py-1.5 text-left max-w-[70px] truncate" title={`${producto.concentracion} ${presentacionNombre}`}>
                             {producto.concentracion && `${producto.concentracion} ${presentacionNombre}`}
                           </td>
-                          <td className="px-2 py-1.5 text-center font-medium">
-  {diasRestantes !== undefined && diasRestantes !== null ? (
-    diasRestantes <= 0 ? (
-      <span className="text-red-600 font-bold">Vencido</span>
-    ) : diasRestantes <= 30 ? (
-      <span className="text-yellow-600 font-semibold">{diasRestantes} días</span>
-    ) : (
-      <span className="text-green-600">{diasRestantes} días</span>
-    )
-  ) : (
-    <span className="text-gray-400">Sin fecha</span>
-  )}
-</td>
                           <td className="px-2 py-1.5 text-center">{producto.stock}</td>
                           <td className="px-2 py-1.5 text-center">{producto.casilla}</td>
                           <td className="px-2 py-1.5 text-center">{producto.precio} Bs</td>
