@@ -571,10 +571,10 @@ const filteredProducto = searchProducto
   ? producto.filter(
       (producto) =>
         !producto.eliminado &&
-        (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
+        ((producto.nombre?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
+          (producto.codigo?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
+          (producto.nombre_generico?.toLowerCase() || "").includes(searchProducto.toLowerCase()) ||
+          (producto.descripcion?.toLowerCase() || "").includes(searchProducto.toLowerCase()))
     )
   : [];
 
