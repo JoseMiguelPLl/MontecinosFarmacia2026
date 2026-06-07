@@ -336,12 +336,14 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
   };
 
   // Lógica de búsqueda y filtrado
-  const filteredProductos = products.filter(
-    (product) =>
-      !product.eliminado &&
-      (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.codigo.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+const filteredProductos = products.filter(
+  (product) =>
+    !product.eliminado &&
+    (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.nombre_generico.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
+);
 
   // Lógica de paginación
   const startIndex = (currentPage - 1) * itemsPerPage;

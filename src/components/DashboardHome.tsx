@@ -99,6 +99,10 @@ const DashboardHome: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [isLoadingIngresos, setIsLoadingIngresos] = useState<boolean>(false);
 
+  // Estados para la paginación de productos próximos a vencer
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
+
   // Función para obtener ingresos mensuales por año
   const fetchIngresosMensuales = async (year: number) => {
     setIsLoadingIngresos(true);
@@ -348,6 +352,24 @@ const DashboardHome: React.FC = () => {
     return null;
   };
 
+  // Lógica de paginación para Productos próximos a vencer
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProductosProximos = productosProximosAVencer.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(productosProximosAVencer.length / itemsPerPage);
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50/50">
       <NavBarRoot />
@@ -526,34 +548,76 @@ const DashboardHome: React.FC = () => {
             </CardHeader>
             <CardContent className="p-6">
               {productosProximosAVencer.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Nombre</th>
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Laboratorio</th>
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Presentación</th>
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Fecha de Vencimiento</th>
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Días Restantes</th>
-                        <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {productosProximosAVencer.map((producto, index) => (
-                        <tr key={producto.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="p-3 text-sm text-gray-700">{producto.nombre}</td>
-                          <td className="p-3 text-sm text-gray-700">{producto.laboratorio}</td>
-                          <td className="p-3 text-sm text-gray-700">{producto.presentacion}</td>
-                          <td className="p-3 text-sm text-gray-700">{moment(producto.fechaVencimiento).format('DD/MM/YYYY')}</td>
-                          <td className="p-3 text-sm text-gray-700">{producto.diasParaVencer}</td>
-                          <td className={`p-3 text-sm ${getEstadoColor(producto.estado)}`}>
-                            {producto.estado}
-                          </td>
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Nombre</th>
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Laboratorio</th>
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Presentación</th>
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Fecha de Vencimiento</th>
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Días Restantes</th>
+                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Estado</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {currentProductosProximos.map((producto, index) => (
+                          <tr key={producto.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="p-3 text-sm text-gray-700">{producto.nombre}</td>
+                            <td className="p-3 text-sm text-gray-700">{producto.laboratorio}</td>
+                            <td className="p-3 text-sm text-gray-700">{producto.presentacion}</td>
+                            <td className="p-3 text-sm text-gray-700">{moment(producto.fechaVencimiento).format('DD/MM/YYYY')}</td>
+                            <td className="p-3 text-sm text-gray-700">{producto.diasParaVencer}</td>
+                            <td className={`p-3 text-sm ${getEstadoColor(producto.estado)}`}>
+                              {producto.estado}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Botones de Paginación */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 px-1">
+                      <div className="text-sm text-gray-500">
+                        Mostrando registros del <span className="font-semibold">{indexOfFirstItem + 1}</span> al{' '}
+                        <span className="font-semibold">
+                          {Math.min(indexOfLastItem, productosProximosAVencer.length)}
+                        </span>{' '}
+                        de un total de <span className="font-semibold">{productosProximosAVencer.length}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={prevPage}
+                          disabled={currentPage === 1}
+                          className={`px-3 py-1.5 text-sm rounded-md font-medium border transition-colors ${
+                            currentPage === 1
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Anterior
+                        </button>
+                        <div className="text-sm font-medium text-gray-700">
+                          Página {currentPage} de {totalPages}
+                        </div>
+                        <button
+                          onClick={nextPage}
+                          disabled={currentPage === totalPages}
+                          className={`px-3 py-1.5 text-sm rounded-md font-medium border transition-colors ${
+                            currentPage === totalPages
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-center text-gray-500 py-4">No hay productos próximos a vencer en los próximos 90 días.</p>
               )}

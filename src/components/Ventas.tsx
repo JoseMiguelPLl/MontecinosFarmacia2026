@@ -60,6 +60,7 @@ interface Clientes {
 
 interface Producto {
   id: number;
+  codigo: string;
   stock: number;
   casilla: number;
   nombre: string;
@@ -70,6 +71,7 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
+ nombre_generico: string;
 }
 
 interface Tipo {
@@ -561,13 +563,16 @@ const hoy = new Date().toISOString().split("T")[0];
     )
     : [];
 
-  const filteredProducto = searchProducto
-    ? producto.filter(
+const filteredProducto = searchProducto
+  ? producto.filter(
       (producto) =>
         !producto.eliminado &&
-        producto.nombre.toLowerCase().includes(searchProducto.toLowerCase())
+        (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
     )
-    : [];
+  : [];
 
   return (
     <div className="flex h-screen bg-gray-50">
