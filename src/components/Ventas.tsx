@@ -71,7 +71,10 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
- nombre_generico: string;
+  nombre_generico: string;
+  vencimiento: string;     // Propiedad de fecha mapeada del controlador
+  diasParaVencer?: number;  // Propiedad mapeada del controlador en minúscula
+  DiasParaVencer?: number;  // Fallback por si C# serializa con PascalCase
 }
 
 interface Tipo {
@@ -883,6 +886,7 @@ const filteredProducto = searchProducto
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Lab.</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Tipo</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Present.</th>
+                      <th className="px-2 py-1.5 text-center bg-blue font-medium">Vencimiento</th> {/* Nueva Columna */}
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Stock</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Casilla</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio</th>
@@ -902,6 +906,9 @@ const filteredProducto = searchProducto
                         presentacion.find(
                           (pres) => pres.id === producto.idpresentacion
                         )?.nombreCorto || "N/A";
+
+                      // Extraer de manera segura los días calculados desde tu backend C# (en minúscula o mayúscula)
+                      const diasRestantes = producto.diasParaVencer !== undefined ? producto.diasParaVencer : producto.DiasParaVencer;
 
                       return (
                         <motion.tr
@@ -929,6 +936,22 @@ const filteredProducto = searchProducto
                           <td className="px-2 py-1.5 text-left max-w-[70px] truncate" title={`${producto.concentracion} ${presentacionNombre}`}>
                             {producto.concentracion && `${producto.concentracion} ${presentacionNombre}`}
                           </td>
+                          
+                          {/* Renderizado de la celda de días restantes dinámico según el backend */}
+                          <td className="px-2 py-1.5 text-center font-medium">
+                            {diasRestantes !== undefined && diasRestantes !== null ? (
+                              diasRestantes <= 0 ? (
+                                <span className="text-red-600 font-bold">Vencido</span>
+                              ) : diasRestantes <= 30 ? (
+                                <span className="text-yellow-600 font-semibold">{diasRestantes} días</span>
+                              ) : (
+                                <span className="text-green-600">{diasRestantes} días</span>
+                              )
+                            ) : (
+                              <span className="text-gray-400">Sin fecha</span>
+                            )}
+                          </td>
+
                           <td className="px-2 py-1.5 text-center">{producto.stock}</td>
                           <td className="px-2 py-1.5 text-center">{producto.casilla}</td>
                           <td className="px-2 py-1.5 text-center">{producto.precio} Bs</td>
