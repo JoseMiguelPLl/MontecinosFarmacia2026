@@ -947,9 +947,15 @@ const filteredProducto = searchProducto
                               </div>
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 text-left max-w-[60px] truncate" title={laboratorioNombre}>
-                            {laboratorioNombre}
+                           <td className="px-2 py-1.5 text-left max-w-[120px]">
+                            <div className="group relative">
+                              <span className="truncate block">{laboratorioNombre}</span>
+                              <div className="absolute invisible group-hover:visible z-10 bottom-full left-0 mb-2 w-64 p-2 bg-white border border-gray-200 rounded shadow-lg text-xs">
+                                {laboratorioNombre}
+                              </div>
+                            </div>
                           </td>
+
                           <td className="px-2 py-1.5 text-left max-w-[60px] truncate" title={tipoNombre}>
                             {tipoNombre}
                           </td>
