@@ -72,6 +72,7 @@ interface Producto {
   idlaboratorio: number;
   idtipo: number;
  nombre_generico: string;
+ vecimiento: string;
 }
 
 interface Tipo {
@@ -142,7 +143,31 @@ function Modal({ isOpen, onClose, title, message, type }: ModalProps) {
     </div>
   );
 }
+// Función auxiliar para calcular días restantes y su estilo visual
+function obtenerDiasRestantes(fechaVencimientoStr: string) {
+  if (!fechaVencimientoStr) return { texto: "N/A", clase: "text-gray-500 font-medium" };
 
+  const hoy = new Date();
+  // Resetear horas, minutos y segundos para comparar solo días exactos
+  hoy.setHours(0, 0, 0, 0);
+
+  const fechaVence = new Date(fechaVencimientoStr);
+  fechaVence.setHours(0, 0, 0, 0);
+
+  // Calcular diferencia en milisegundos y pasarla a días
+  const diferenciaTiempo = fechaVence.getTime() - hoy.getTime();
+  const diasRestantes = Math.ceil(diferenciaTiempo / (1000 * 60 * 60 * 24));
+
+  if (diasRestantes < 0) {
+    return { texto: `Vencido hace ${Math.abs(diasRestantes)} d`, clase: "text-red-600 font-bold bg-red-100 px-1.5 py-0.5 rounded" };
+  } else if (diasRestantes === 0) {
+    return { texto: "Vence HOY", clase: "text-orange-600 font-bold bg-orange-100 px-1.5 py-0.5 rounded animate-pulse" };
+  } else if (diasRestantes <= 30) {
+    return { texto: `${diasRestantes} d (Próximo)`, clase: "text-yellow-600 font-semibold bg-yellow-100 px-1.5 py-0.5 rounded" };
+  } else {
+    return { texto: `${diasRestantes} d`, clase: "text-green-600 font-medium" };
+  }
+}
 function Ventas() {
   const [usuarios, setUsuarios] = useState<Clientes[]>([]);
   
@@ -883,6 +908,7 @@ const filteredProducto = searchProducto
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Lab.</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Tipo</th>
                       <th className="px-2 py-1.5 text-left bg-blue font-medium">Present.</th>
+                      <th className="px-2 py-1.5 text-left bg-blue font-medium">Vecimiento</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Stock</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Casilla</th>
                       <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio</th>
@@ -929,6 +955,12 @@ const filteredProducto = searchProducto
                           <td className="px-2 py-1.5 text-left max-w-[70px] truncate" title={`${producto.concentracion} ${presentacionNombre}`}>
                             {producto.concentracion && `${producto.concentracion} ${presentacionNombre}`}
                           </td>
+                          <td className="px-2 py-1.5 text-center whitespace-nowrap">
+      {(() => {
+        const infoVence = obtenerDiasRestantes(producto.vecimiento);
+        return <span className={infoVence.clase}>{infoVence.texto}</span>;
+      })()}
+    </td>
                           <td className="px-2 py-1.5 text-center">{producto.stock}</td>
                           <td className="px-2 py-1.5 text-center">{producto.casilla}</td>
                           <td className="px-2 py-1.5 text-center">{producto.precio} Bs</td>
