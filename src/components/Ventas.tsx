@@ -72,7 +72,7 @@ interface Producto {
   idlaboratorio: number;
   idtipo: number;
  nombre_generico: string;
- vecimiento: string;
+ Vecimiento: string;
 }
 
 interface Tipo {
@@ -168,6 +168,7 @@ function obtenerDiasRestantes(fechaVencimientoStr: string) {
     return { texto: `${diasRestantes} d`, clase: "text-green-600 font-medium" };
   }
 }
+
 function Ventas() {
   const [usuarios, setUsuarios] = useState<Clientes[]>([]);
   
@@ -957,7 +958,7 @@ const filteredProducto = searchProducto
                           </td>
                           <td className="px-2 py-1.5 text-center whitespace-nowrap">
       {(() => {
-        const infoVence = obtenerDiasRestantes(producto.vecimiento);
+        const infoVence = obtenerDiasRestantes(producto.Vecimiento);
         return <span className={infoVence.clase}>{infoVence.texto}</span>;
       })()}
     </td>
