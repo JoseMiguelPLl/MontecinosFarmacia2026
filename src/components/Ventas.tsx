@@ -72,7 +72,7 @@ interface Producto {
   idlaboratorio: number;
   idtipo: number;
  nombre_generico: string;
- Vecimiento: string;
+ Vencimiento: string;
 }
 
 interface Tipo {
@@ -958,7 +958,7 @@ const filteredProducto = searchProducto
                           </td>
                           <td className="px-2 py-1.5 text-center whitespace-nowrap">
       {(() => {
-        const infoVence = obtenerDiasRestantes(producto.Vecimiento);
+        const infoVence = obtenerDiasRestantes(producto.Vencimiento);
         return <span className={infoVence.clase}>{infoVence.texto}</span>;
       })()}
     </td>
