@@ -340,7 +340,7 @@ const filteredProductos = products.filter(
   (product) =>
     !product.eliminado &&
     (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.nombre_generico.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
 );

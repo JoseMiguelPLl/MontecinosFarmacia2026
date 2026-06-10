@@ -71,6 +71,7 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
+  lote: string;
  nombre_generico: string;
  vencimiento: string;
 }
@@ -594,7 +595,7 @@ const filteredProducto = searchProducto
       (producto) =>
         !producto.eliminado &&
         (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+          producto.lote.toLowerCase().includes(searchProducto.toLowerCase()) ||
           producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
           producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
     )
