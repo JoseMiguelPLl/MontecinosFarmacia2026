@@ -14,7 +14,8 @@ import {
   Clock,
   X,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  UserPlus
 } from "lucide-react";
 import {
   Card,
@@ -105,6 +106,9 @@ interface Configuracion {
   direccion: string;
 }
 
+// Letras del abecedario para el filtro alfabético
+const LETRAS_ALFABETO = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -192,6 +196,12 @@ const hoy = new Date().toISOString().split("T")[0];
   const [currentTime, setCurrentTime] = useState(new Date());
   const [search, setSearch] = useState("");
   const [searchProducto, setSearchProducto] = useState("");
+
+  // --- NUEVO: estados de filtros combinables para Productos Disponibles ---
+  const [filterTipo, setFilterTipo] = useState("");
+  const [filterLaboratorio, setFilterLaboratorio] = useState("");
+  const [filterPresentacion, setFilterPresentacion] = useState("");
+  const [filterAlfabeto, setFilterAlfabeto] = useState("");
   const [selectedUser, setSelectedUser] = useState<Clientes | null>(null);
   const [selectedProducto, setSelectedProducto] = useState<Producto[]>([]);
   const [cantidadProducto, setCantidadProducto] = useState<{
@@ -203,6 +213,16 @@ const hoy = new Date().toISOString().split("T")[0];
     message: "",
     type: "error" as "error" | "success"
   });
+
+  // --- NUEVO: estado para el formulario de "Agregar Cliente" en línea ---
+  const [showAddCliente, setShowAddCliente] = useState(false);
+  const [newCliente, setNewCliente] = useState({
+    nombre: "",
+    ci: "",
+    telefono: "",
+    direccion: "",
+  });
+  const [guardandoCliente, setGuardandoCliente] = useState(false);
 
   const name = localStorage.getItem("userName");
   
@@ -319,6 +339,72 @@ const hoy = new Date().toISOString().split("T")[0];
       const cantidad = cantidadProducto[producto.id] || 1;
       return acumulado + cantidad * producto.precio;
     }, 0);
+  };
+
+  // --- NUEVO: manejar cambios del formulario de nuevo cliente ---
+  const handleNewClienteChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewCliente((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // --- NUEVO: crear cliente desde el mismo formulario de Ventas ---
+  const handleAgregarCliente = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const nombreFinal = newCliente.nombre.trim() || "S/D";
+    const ciFinal = newCliente.ci.trim() || "S/D";
+    const telefonoFinal = newCliente.telefono.trim() || "S/D";
+    const direccionFinal = newCliente.direccion.trim() || "S/D";
+
+    setGuardandoCliente(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/Clientes/Crear?nombre=${encodeURIComponent(
+          nombreFinal
+        )}&ci=${encodeURIComponent(ciFinal)}&telefono=${encodeURIComponent(
+          telefonoFinal
+        )}&direccion=${encodeURIComponent(direccionFinal)}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al crear el cliente.");
+      }
+
+      const nuevoCliente = await response.json();
+
+      // Agregar el nuevo cliente a la lista local
+      setUsuarios((prev) => [...prev, nuevoCliente]);
+
+      // Seleccionarlo automáticamente como cliente de la venta actual
+      setSelectedUser(nuevoCliente);
+
+      // Limpiar el formulario y cerrarlo
+      setNewCliente({ nombre: "", ci: "", telefono: "", direccion: "" });
+      setShowAddCliente(false);
+
+      setModal({
+        isOpen: true,
+        title: "Cliente Agregado",
+        message: `El cliente "${nuevoCliente.nombre}" se registró y fue seleccionado para la venta.`,
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error al crear el cliente:", error);
+      setModal({
+        isOpen: true,
+        title: "Error",
+        message: "Ha ocurrido un error al registrar el cliente. Por favor, intente nuevamente.",
+        type: "error",
+      });
+    } finally {
+      setGuardandoCliente(false);
+    }
   };
 
   const handleAgregar = async (e: React.FormEvent) => {
@@ -590,16 +676,56 @@ const hoy = new Date().toISOString().split("T")[0];
     )
     : [];
 
-const filteredProducto = searchProducto
-  ? producto.filter(
-      (producto) =>
-        !producto.eliminado &&
-        (producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.lote.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.nombre_generico.toLowerCase().includes(searchProducto.toLowerCase()) ||
-          producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase()))
-    )
-  : [];
+  // --- NUEVO: limpiar filtros de Productos Disponibles ---
+  const handleClearFiltrosProducto = () => {
+    setSearchProducto("");
+    setFilterTipo("");
+    setFilterLaboratorio("");
+    setFilterPresentacion("");
+    setFilterAlfabeto("");
+  };
+
+  // Filtrado de productos (buscador + tipo + laboratorio + presentación + alfabeto, todos combinables)
+  const filteredProducto = producto
+    .filter((producto) => {
+      if (producto.eliminado) return false;
+
+      const coincideBusqueda =
+        searchProducto.trim() === "" ||
+        producto.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
+        producto.lote.toLowerCase().includes(searchProducto.toLowerCase()) ||
+        producto.nombre_generico
+          .toLowerCase()
+          .includes(searchProducto.toLowerCase()) ||
+        producto.descripcion.toLowerCase().includes(searchProducto.toLowerCase());
+
+      const coincideTipo =
+        filterTipo === "" || producto.idtipo === Number(filterTipo);
+
+      const coincideLaboratorio =
+        filterLaboratorio === "" ||
+        producto.idlaboratorio === Number(filterLaboratorio);
+
+      const coincidePresentacion =
+        filterPresentacion === "" ||
+        producto.idpresentacion === Number(filterPresentacion);
+
+      const coincideAlfabeto =
+        filterAlfabeto === "" ||
+        producto.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
+
+      return (
+        coincideBusqueda &&
+        coincideTipo &&
+        coincideLaboratorio &&
+        coincidePresentacion &&
+        coincideAlfabeto
+      );
+    })
+    // --- NUEVO: orden alfabético real (A-Z) por nombre, respetando la Ñ y acentos del español ---
+    .sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    );
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -632,12 +758,100 @@ const filteredProducto = searchProducto
             {/* Search and Client Selection Section */}
             <Card className="shadow-md">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <User className="h-5 w-5" />
-                  Selección de Cliente
+                <CardTitle className="flex items-center justify-between text-lg">
+                  <span className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Selección de Cliente
+                  </span>
+                  {/* --- NUEVO: botón para mostrar/ocultar el formulario de nuevo cliente --- */}
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAddCliente((prev) => !prev)}
+                    className="flex items-center gap-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1.5 text-xs rounded-lg hover:from-green-600 hover:to-green-700 transition-colors shadow-sm"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    {showAddCliente ? "Cancelar" : "Nuevo Cliente"}
+                  </motion.button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
+                {/* --- NUEVO: formulario en línea para crear cliente --- */}
+                {showAddCliente && (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    onSubmit={handleAgregarCliente}
+                    className="mb-4 p-3 bg-gray-50 rounded-lg border space-y-3"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Nombre
+                        </label>
+                        <input
+                          type="text"
+                          name="nombre"
+                          value={newCliente.nombre}
+                          onChange={handleNewClienteChange}
+                          placeholder="Nombre del cliente"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          CI/NIT
+                        </label>
+                        <input
+                          type="text"
+                          name="ci"
+                          value={newCliente.ci}
+                          onChange={handleNewClienteChange}
+                          placeholder="Carnet de identidad"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Teléfono
+                        </label>
+                        <input
+                          type="text"
+                          name="telefono"
+                          value={newCliente.telefono}
+                          onChange={handleNewClienteChange}
+                          placeholder="Número de teléfono"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Dirección
+                        </label>
+                        <input
+                          type="text"
+                          name="direccion"
+                          value={newCliente.direccion}
+                          onChange={handleNewClienteChange}
+                          placeholder="Dirección"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+                    </div>
+                   
+                    <motion.button
+                      type="submit"
+                      disabled={guardandoCliente}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md text-sm disabled:opacity-60"
+                    >
+                      {guardandoCliente ? "Guardando..." : "Guardar Cliente"}
+                    </motion.button>
+                  </motion.form>
+                )}
+
                 <div className="relative mb-4">
                   <input
                     type="text"
@@ -899,6 +1113,96 @@ const filteredProducto = searchProducto
                   onChange={(e) => setSearchProducto(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
+              </div>
+
+              {/* --- NUEVO: Filtros combinables (Tipo, Laboratorio, Presentación, Alfabético) --- */}
+              <div className="flex flex-wrap gap-3 items-end mb-3">
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Tipo
+                  </label>
+                  <select
+                    value={filterTipo}
+                    onChange={(e) => setFilterTipo(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todos</option>
+                    {tipo.map((tp) => (
+                      <option key={tp.id} value={tp.id}>
+                        {tp.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Laboratorio
+                  </label>
+                  <select
+                    value={filterLaboratorio}
+                    onChange={(e) => setFilterLaboratorio(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todos</option>
+                    {laboratorio.map((lab) => (
+                      <option key={lab.id} value={lab.id}>
+                        {lab.laboratorioNombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Presentación
+                  </label>
+                  <select
+                    value={filterPresentacion}
+                    onChange={(e) => setFilterPresentacion(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todas</option>
+                    {presentacion.map((pre) => (
+                      <option key={pre.id} value={pre.id}>
+                        {pre.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              
+
+                <button
+                  type="button"
+                  onClick={handleClearFiltrosProducto}
+                  className="px-3 py-1 text-sm rounded border text-gray-700 hover:bg-gray-100 transition"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+
+              {/* --- NUEVO: Botones rápidos A-Z para filtro alfabético --- */}
+              <div className="flex flex-wrap gap-1 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setFilterAlfabeto("")}
+                  className="px-2 py-1 text-xs rounded border text-gray-700 hover:bg-gray-100"
+                  style={filterAlfabeto === "" ? { background: "blue", color: "white" } : {}}
+                >
+                  Todas
+                </button>
+                {LETRAS_ALFABETO.map((letra) => (
+                  <button
+                    key={letra}
+                    type="button"
+                    onClick={() => setFilterAlfabeto(letra)}
+                    className="px-2 py-1 text-xs rounded border text-gray-700 hover:bg-gray-100"
+                    style={filterAlfabeto === letra ? { background: "blue", color: "white" } : {}}
+                  >
+                    {letra}
+                  </button>
+                ))}
               </div>
 
               <div className="max-h-96 overflow-y-auto rounded-lg border">

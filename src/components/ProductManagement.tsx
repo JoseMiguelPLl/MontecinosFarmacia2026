@@ -73,6 +73,9 @@ const initialProductState: Partial<Product> = {
   nombre_generico: "",
 };
 
+// Letras del abecedario para el filtro alfabético
+const LETRAS_ALFABETO = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
+
 // Componente principal
 const ProductManagement: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -90,6 +93,12 @@ const ProductManagement: React.FC = () => {
     type: "success",
     message: "",
   });
+
+  // --- NUEVO: estados de filtros combinables ---
+  const [filterTipo, setFilterTipo] = useState<string>("");
+  const [filterLaboratorio, setFilterLaboratorio] = useState<string>("");
+  const [filterPresentacion, setFilterPresentacion] = useState<string>("");
+  const [filterAlfabeto, setFilterAlfabeto] = useState<string>("");
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -335,15 +344,57 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     );
   };
 
-  // Lógica de búsqueda y filtrado
-const filteredProductos = products.filter(
-  (product) =>
-    !product.eliminado &&
-    (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.nombre_generico.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
-);
+  // --- NUEVO: limpiar todos los filtros (incluye buscador) ---
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterTipo("");
+    setFilterLaboratorio("");
+    setFilterPresentacion("");
+    setFilterAlfabeto("");
+    setCurrentPage(1);
+  };
+
+  // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto, todos combinables)
+  const filteredProductos = products
+    .filter((product) => {
+      if (product.eliminado) return false;
+
+      const coincideBusqueda =
+        searchTerm.trim() === "" ||
+        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.nombre_generico
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        product.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const coincideTipo =
+        filterTipo === "" || product.idtipo === Number(filterTipo);
+
+      const coincideLaboratorio =
+        filterLaboratorio === "" ||
+        product.idlaboratorio === Number(filterLaboratorio);
+
+      const coincidePresentacion =
+        filterPresentacion === "" ||
+        product.idpresentacion === Number(filterPresentacion);
+
+      const coincideAlfabeto =
+        filterAlfabeto === "" ||
+        product.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
+
+      return (
+        coincideBusqueda &&
+        coincideTipo &&
+        coincideLaboratorio &&
+        coincidePresentacion &&
+        coincideAlfabeto
+      );
+    })
+    // --- NUEVO: orden alfabético real (A-Z) por nombre, respetando la Ñ y acentos del español ---
+    .sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    );
 
   // Lógica de paginación
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -699,6 +750,119 @@ const filteredProductos = products.filter(
                 >
                   <Search size={18} />
                 </button>
+              </div>
+
+              {/* --- NUEVO: Filtros combinables (Tipo, Laboratorio, Presentación, Alfabético) --- */}
+              <div className="filters-container flex flex-wrap gap-3 items-end mb-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Tipo
+                  </label>
+                  <select
+                    value={filterTipo}
+                    onChange={(e) => {
+                      setFilterTipo(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm focus:ring-blue focus:border-blue"
+                  >
+                    <option value="">Todos</option>
+                    {tipo.map((tp) => (
+                      <option key={tp.id} value={tp.id}>
+                        {tp.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Laboratorio
+                  </label>
+                  <select
+                    value={filterLaboratorio}
+                    onChange={(e) => {
+                      setFilterLaboratorio(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm focus:ring-blue focus:border-blue"
+                  >
+                    <option value="">Todos</option>
+                    {laboratorio.map((lab) => (
+                      <option key={lab.id} value={lab.id}>
+                        {lab.laboratorioNombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Presentación
+                  </label>
+                  <select
+                    value={filterPresentacion}
+                    onChange={(e) => {
+                      setFilterPresentacion(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm focus:ring-blue focus:border-blue"
+                  >
+                    <option value="">Todas</option>
+                    {presentacion.map((pre) => (
+                      <option key={pre.id} value={pre.id}>
+                        {pre.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              
+
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="px-3 py-1 text-sm rounded border text-gray-700 hover:bg-gray-100 transition"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+
+              {/* --- NUEVO: Botones rápidos A-Z para filtro alfabético --- */}
+              <div className="alphabet-quick-filter flex flex-wrap gap-1 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterAlfabeto("");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2 py-1 text-xs rounded border ${
+                    filterAlfabeto === ""
+                      ? "bg-blue text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                  style={filterAlfabeto === "" ? { background: "blue" } : {}}
+                >
+                  Todas
+                </button>
+                {LETRAS_ALFABETO.map((letra) => (
+                  <button
+                    key={letra}
+                    type="button"
+                    onClick={() => {
+                      setFilterAlfabeto(letra);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-2 py-1 text-xs rounded border ${
+                      filterAlfabeto === letra
+                        ? "text-white"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                    style={filterAlfabeto === letra ? { background: "blue" } : {}}
+                  >
+                    {letra}
+                  </button>
+                ))}
               </div>
 
               <div className="rounded-lg border overflow-hidden">
