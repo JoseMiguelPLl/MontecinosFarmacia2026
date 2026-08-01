@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Trash2, Edit2, Search, CheckCircle, AlertCircle } from "lucide-react";
+import { Trash2, Edit2, Search, CheckCircle, AlertCircle, FileSpreadsheet, AlertTriangle } from "lucide-react";
 import NavBarRoot from "./NavBarRoot";
+import * as XLSX from "xlsx";
 import {
   Card,
   CardContent,
@@ -99,6 +100,8 @@ const ProductManagement: React.FC = () => {
   const [filterLaboratorio, setFilterLaboratorio] = useState<string>("");
   const [filterPresentacion, setFilterPresentacion] = useState<string>("");
   const [filterAlfabeto, setFilterAlfabeto] = useState<string>("");
+  // --- NUEVO: filtro de productos vencidos ---
+  const [filterVencidos, setFilterVencidos] = useState<boolean>(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -344,57 +347,127 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     );
   };
 
-  // --- NUEVO: limpiar todos los filtros (incluye buscador) ---
+  // --- NUEVO: limpiar todos los filtros (incluye buscador y vencidos) ---
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterTipo("");
     setFilterLaboratorio("");
     setFilterPresentacion("");
     setFilterAlfabeto("");
+    setFilterVencidos(false);
     setCurrentPage(1);
   };
 
-  // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto, todos combinables)
-  const filteredProductos = products
-    .filter((product) => {
-      if (product.eliminado) return false;
+  // --- NUEVO: fecha de hoy (sin horas) para comparar vencimientos ---
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
 
-      const coincideBusqueda =
-        searchTerm.trim() === "" ||
-        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.nombre_generico
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        product.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+  // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto + vencidos, todos combinables)
+  const filteredProductos = products.filter((product) => {
+    if (product.eliminado) return false;
 
-      const coincideTipo =
-        filterTipo === "" || product.idtipo === Number(filterTipo);
+    const coincideBusqueda =
+      searchTerm.trim() === "" ||
+      product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.nombre_generico
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      product.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const coincideLaboratorio =
-        filterLaboratorio === "" ||
-        product.idlaboratorio === Number(filterLaboratorio);
+    const coincideTipo =
+      filterTipo === "" || product.idtipo === Number(filterTipo);
 
-      const coincidePresentacion =
-        filterPresentacion === "" ||
-        product.idpresentacion === Number(filterPresentacion);
+    const coincideLaboratorio =
+      filterLaboratorio === "" ||
+      product.idlaboratorio === Number(filterLaboratorio);
 
-      const coincideAlfabeto =
-        filterAlfabeto === "" ||
-        product.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
+    const coincidePresentacion =
+      filterPresentacion === "" ||
+      product.idpresentacion === Number(filterPresentacion);
 
-      return (
-        coincideBusqueda &&
-        coincideTipo &&
-        coincideLaboratorio &&
-        coincidePresentacion &&
-        coincideAlfabeto
-      );
-    })
-    // --- NUEVO: orden alfabético real (A-Z) por nombre, respetando la Ñ y acentos del español ---
-    .sort((a, b) =>
-      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    const coincideAlfabeto =
+      filterAlfabeto === "" ||
+      product.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
+
+    // --- NUEVO: coincidencia por producto vencido ---
+    const fechaVencimiento = product.vencimiento
+      ? new Date(product.vencimiento)
+      : null;
+    const coincideVencido =
+      !filterVencidos ||
+      (fechaVencimiento !== null &&
+        !isNaN(fechaVencimiento.getTime()) &&
+        fechaVencimiento < hoy);
+
+    return (
+      coincideBusqueda &&
+      coincideTipo &&
+      coincideLaboratorio &&
+      coincidePresentacion &&
+      coincideAlfabeto &&
+      coincideVencido
     );
+  });
+
+  // --- NUEVO: monto total invertido (precio_compra x stock) según el filtro activo ---
+  const montoInvertido = filteredProductos.reduce(
+    (total, p) => total + (Number(p.precio_compra) || 0) * (Number(p.stock) || 0),
+    0,
+  );
+
+  // --- NUEVO: exportar el listado filtrado (con monto invertido) a Excel ---
+  const handleExportExcel = () => {
+    if (filteredProductos.length === 0) {
+      showModal("error", "No hay productos para exportar con el filtro actual");
+      return;
+    }
+
+    const dataToExport = filteredProductos.map((product) => {
+      const tipoNombre =
+        tipo.find((tp) => tp.id === product.idtipo)?.nombre || "N/A";
+      const labNombre =
+        laboratorio.find((lab) => lab.id === product.idlaboratorio)
+          ?.laboratorioNombre || "N/A";
+      const presNombre =
+        presentacion.find((pre) => pre.id === product.idpresentacion)
+          ?.nombre || "";
+      const invertido =
+        (Number(product.precio_compra) || 0) * (Number(product.stock) || 0);
+
+      return {
+        Código: product.codigo,
+        Lote: product.lote,
+        Nombre: product.nombre,
+        "Nombre Genérico": product.nombre_generico,
+        Descripción: product.descripcion,
+        Tipo: tipoNombre,
+        Presentación: presNombre,
+        Laboratorio: labNombre,
+        "Precio Compra": product.precio_compra,
+        "Precio Venta": product.precio,
+        Stock: product.stock,
+        Casilla: product.casilla,
+        Vencimiento: product.vencimiento,
+        "Monto Invertido": invertido,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+
+    // Fila de resumen con el monto total invertido, al final de la hoja
+    XLSX.utils.sheet_add_aoa(
+      worksheet,
+      [[], ["", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]],
+      { origin: -1 },
+    );
+
+    const fecha = new Date().toISOString().slice(0, 10);
+    const sufijo = filterVencidos ? "_vencidos" : "";
+    XLSX.writeFile(workbook, `productos${sufijo}_${fecha}.xlsx`);
+  };
 
   // Lógica de paginación
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -752,7 +825,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                 </button>
               </div>
 
-              {/* --- NUEVO: Filtros combinables (Tipo, Laboratorio, Presentación, Alfabético) --- */}
+              {/* --- NUEVO: Filtros combinables (Tipo, Laboratorio, Presentación, Alfabético, Vencidos) --- */}
               <div className="filters-container flex flex-wrap gap-3 items-end mb-4">
                 <div className="flex flex-col">
                   <label className="text-xs font-medium text-gray-600 mb-1">
@@ -817,7 +890,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   </select>
                 </div>
 
-              
+                
 
                 <button
                   type="button"
@@ -825,6 +898,35 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   className="px-3 py-1 text-sm rounded border text-gray-700 hover:bg-gray-100 transition"
                 >
                   Limpiar filtros
+                </button>
+
+                {/* --- NUEVO: Botón Productos Vencidos --- */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterVencidos((prev) => !prev);
+                    setCurrentPage(1);
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1 text-sm rounded border font-medium transition ${
+                    filterVencidos
+                      ? "text-white border-red-700"
+                      : "text-red-700 border-red-300 hover:bg-red-50"
+                  }`}
+                  style={filterVencidos ? { background: "#b91c1c" } : {}}
+                >
+                  <AlertTriangle size={14} />
+                  {filterVencidos ? "Viendo Vencidos" : "Productos Vencidos"}
+                </button>
+
+                {/* --- NUEVO: Botón Exportar a Excel --- */}
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="flex items-center gap-1 px-3 py-1 text-sm rounded border font-medium text-white hover:opacity-90 transition ml-auto"
+                  style={{ background: "#15803d" }}
+                >
+                  <FileSpreadsheet size={14} />
+                  Exportar a Excel
                 </button>
               </div>
 
@@ -863,6 +965,27 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                     {letra}
                   </button>
                 ))}
+              </div>
+
+              {/* --- NUEVO: Tarjeta con el Monto Invertido según el filtro activo --- */}
+              <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  {filterVencidos && (
+                    <span className="inline-flex items-center gap-1 text-red-700 font-semibold">
+                      <AlertTriangle size={14} /> Mostrando solo productos vencidos
+                    </span>
+                  )}
+                </div>
+                <div
+                  className="px-4 py-2 rounded-lg border text-sm font-bold"
+                  style={{ background: "#eff6ff", borderColor: "blue", color: "blue" }}
+                >
+                  Monto Invertido (según filtro actual):  {" "}
+                  {montoInvertido.toLocaleString("es-BO", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} Bs
+                </div>
               </div>
 
               <div className="rounded-lg border overflow-hidden">
@@ -983,10 +1106,21 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                           )?.nombreCorto || "";
                         const fullPres = `${presNombre} ${product.concentracion || ""} ${presCorto}`;
 
+                        // --- NUEVO: saber si este producto en particular está vencido, para resaltarlo ---
+                        const fechaVencProducto = product.vencimiento
+                          ? new Date(product.vencimiento)
+                          : null;
+                        const estaVencido =
+                          fechaVencProducto !== null &&
+                          !isNaN(fechaVencProducto.getTime()) &&
+                          fechaVencProducto < hoy;
+
                         return (
                           <tr
                             key={product.id}
-                            className="hover:bg-gray-50 transition-colors"
+                            className={`hover:bg-gray-50 transition-colors ${
+                              estaVencido ? "bg-red-50" : ""
+                            }`}
                           >
                             {/* Celda Nombre con Tooltip */}
                             <td className="px-2 py-1.5 border-r relative group">
@@ -1075,7 +1209,11 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                             <td className="px-2 py-1.5 text-center border-r">
                               {product.casilla}
                             </td>
-                            <td className="px-2 py-1.5 text-center border-r text-[10px]">
+                            <td
+                              className={`px-2 py-1.5 text-center border-r text-[10px] ${
+                                estaVencido ? "text-red-700 font-bold" : ""
+                              }`}
+                            >
                               {product.vencimiento}
                             </td>
 

@@ -36,6 +36,7 @@ interface Product {
   stock: number;
   presentacionNombre?: string;
   laboratorioNombre?: string;
+    precio_compra: number;
 }
 
 interface Tipo {
