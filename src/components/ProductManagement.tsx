@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Trash2, Edit2, Search, CheckCircle, AlertCircle, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Trash2, Edit2, Search, CheckCircle, AlertCircle, FileSpreadsheet, AlertTriangle, Plus, Clock, X } from "lucide-react";
 import NavBarRoot from "./NavBarRoot";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa6";
+import logo from "../img/logo1.png";
+import moment from "moment";
 import {
   Card,
   CardContent,
@@ -10,6 +15,13 @@ import {
 } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import "./ProductManagement.css";
+
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => void;
+    lastAutoTable: any;
+  }
+}
 
 // Interfaces
 interface Product {
@@ -50,6 +62,14 @@ interface Presentacion {
   nombreCorto: string;
 }
 
+interface Configuracion {
+  id: string;
+  nombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+}
+
 interface AlertState {
   show: boolean;
   type: "error" | "success";
@@ -77,12 +97,15 @@ const initialProductState: Partial<Product> = {
 // Letras del abecedario para el filtro alfabético
 const LETRAS_ALFABETO = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
 
+type QuickModalType = "tipo" | "laboratorio" | "presentacion" | null;
+
 // Componente principal
 const ProductManagement: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [tipo, setTipos] = useState<Tipo[]>([]);
   const [presentacion, setPresentacion] = useState<Presentacion[]>([]);
   const [laboratorio, setLaboratorio] = useState<Laboratory[]>([]);
+  const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
   const [editProducto, setEditProducto] = useState<Product | null>(null);
   const [formData, setFormData] =
     useState<Partial<Product>>(initialProductState);
@@ -95,13 +118,22 @@ const ProductManagement: React.FC = () => {
     message: "",
   });
 
-  // --- NUEVO: estados de filtros combinables ---
+  // --- Estados de filtros combinables ---
   const [filterTipo, setFilterTipo] = useState<string>("");
   const [filterLaboratorio, setFilterLaboratorio] = useState<string>("");
   const [filterPresentacion, setFilterPresentacion] = useState<string>("");
   const [filterAlfabeto, setFilterAlfabeto] = useState<string>("");
-  // --- NUEVO: filtro de productos vencidos ---
   const [filterVencidos, setFilterVencidos] = useState<boolean>(false);
+  const [filterProximosVencer, setFilterProximosVencer] = useState<boolean>(false);
+
+  // --- Estados para creación rápida (Tipo, Laboratorio, Presentación) ---
+  const [quickModal, setQuickModal] = useState<QuickModalType>(null);
+  const [quickTipoName, setQuickTipoName] = useState("");
+  const [quickLabName, setQuickLabName] = useState("");
+  const [quickLabDireccion, setQuickLabDireccion] = useState("");
+  const [quickPresName, setQuickPresName] = useState("");
+  const [quickPresCorto, setQuickPresCorto] = useState("");
+  const [isSubmittingQuick, setIsSubmittingQuick] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -133,6 +165,16 @@ const ProductManagement: React.FC = () => {
         setTipos(dataTipos);
         setLaboratorio(dataLaboratorios);
         setPresentacion(dataPresentacion);
+
+        try {
+          const configRes = await fetch("http://localhost:5000/api/Configuracions/ListarConfiguracionActivos");
+          if (configRes.ok) {
+            const dataConfig = await configRes.json();
+            setConfiguracion(dataConfig);
+          }
+        } catch (configError) {
+          console.error("Error al cargar configuración:", configError);
+        }
       } catch (error) {
         showAlert("error", "Error al cargar los datos");
       }
@@ -347,7 +389,113 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     );
   };
 
-  // --- NUEVO: limpiar todos los filtros (incluye buscador y vencidos) ---
+  // --- Manejadores para creación rápida (Tipo, Laboratorio, Presentación) ---
+  const handleCreateQuickTipo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickTipoName.trim()) {
+      showModal("error", "El nombre del tipo es obligatorio");
+      return;
+    }
+    setIsSubmittingQuick(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/Tipos/Crear?nombre=${encodeURIComponent(quickTipoName.trim())}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const newTipo: Tipo = await response.json();
+        setTipos((prev) => [...prev, newTipo]);
+        setFormData((prev: any) => ({ ...prev, idtipo: newTipo.id }));
+        setQuickTipoName("");
+        setQuickModal(null);
+        showModal("success", `Tipo "${newTipo.nombre}" creado y seleccionado correctamente`);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al crear el tipo");
+      }
+    } catch (error) {
+      showModal("error", error instanceof Error ? error.message : "Error al crear el tipo");
+    } finally {
+      setIsSubmittingQuick(false);
+    }
+  };
+
+  const handleCreateQuickLab = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickLabName.trim() || !quickLabDireccion.trim()) {
+      showModal("error", "Por favor complete el nombre y la dirección del laboratorio");
+      return;
+    }
+    setIsSubmittingQuick(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/Laboratorios/Crear?laboratorionombre=${encodeURIComponent(quickLabName.trim())}&direccion=${encodeURIComponent(quickLabDireccion.trim())}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (response.ok) {
+        const newLab: Laboratory = await response.json();
+        setLaboratorio((prev) => [...prev, newLab]);
+        setFormData((prev: any) => ({ ...prev, idlaboratorio: newLab.id }));
+        setQuickLabName("");
+        setQuickLabDireccion("");
+        setQuickModal(null);
+        showModal("success", `Laboratorio "${newLab.laboratorioNombre}" creado y seleccionado correctamente`);
+      } else {
+        throw new Error("Error al crear laboratorio");
+      }
+    } catch (error) {
+      showModal("error", error instanceof Error ? error.message : "Error al crear el laboratorio");
+    } finally {
+      setIsSubmittingQuick(false);
+    }
+  };
+
+  const handleCreateQuickPres = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickPresName.trim() || !quickPresCorto.trim()) {
+      showModal("error", "Por favor complete el nombre y nombre corto de la presentación");
+      return;
+    }
+    setIsSubmittingQuick(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/Presentaciones/Crear?nombre=${encodeURIComponent(quickPresName.trim())}&nombreCorto=${encodeURIComponent(quickPresCorto.trim())}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const newPres: Presentacion = await response.json();
+        setPresentacion((prev) => [...prev, newPres]);
+        setFormData((prev: any) => ({ ...prev, idpresentacion: newPres.id }));
+        setQuickPresName("");
+        setQuickPresCorto("");
+        setQuickModal(null);
+        showModal("success", `Presentación "${newPres.nombre}" creada y seleccionada correctamente`);
+      } else {
+        throw new Error("Error al crear la presentación");
+      }
+    } catch (error) {
+      showModal("error", error instanceof Error ? error.message : "Error al crear la presentación");
+    } finally {
+      setIsSubmittingQuick(false);
+    }
+  };
+
+  // --- Limpiar todos los filtros ---
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterTipo("");
@@ -355,14 +503,23 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     setFilterPresentacion("");
     setFilterAlfabeto("");
     setFilterVencidos(false);
+    setFilterProximosVencer(false);
     setCurrentPage(1);
   };
 
-  // --- NUEVO: fecha de hoy (sin horas) para comparar vencimientos ---
+  // --- Fecha de hoy para comparar vencimientos ---
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
-  // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto + vencidos, todos combinables)
+  // Función para calcular días restantes de vencimiento
+  const getDiasParaVencer = (vencimientoStr?: string): number | null => {
+    if (!vencimientoStr) return null;
+    const fechaVenc = new Date(vencimientoStr);
+    if (isNaN(fechaVenc.getTime())) return null;
+    return Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto + vencidos + próximos a vencer)
   const filteredProductos = products.filter((product) => {
     if (product.eliminado) return false;
 
@@ -390,15 +547,13 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       filterAlfabeto === "" ||
       product.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
 
-    // --- NUEVO: coincidencia por producto vencido ---
-    const fechaVencimiento = product.vencimiento
-      ? new Date(product.vencimiento)
-      : null;
-    const coincideVencido =
-      !filterVencidos ||
-      (fechaVencimiento !== null &&
-        !isNaN(fechaVencimiento.getTime()) &&
-        fechaVencimiento < hoy);
+    const dias = getDiasParaVencer(product.vencimiento);
+
+    // Coincidencia por producto vencido (<= 0 días)
+    const coincideVencido = !filterVencidos || (dias !== null && dias <= 0);
+
+    // Coincidencia por producto próximo a vencer (> 0 y <= 30 días)
+    const coincideProximoVencer = !filterProximosVencer || (dias !== null && dias > 0 && dias <= 30);
 
     return (
       coincideBusqueda &&
@@ -406,17 +561,18 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       coincideLaboratorio &&
       coincidePresentacion &&
       coincideAlfabeto &&
-      coincideVencido
+      coincideVencido &&
+      coincideProximoVencer
     );
   });
 
-  // --- NUEVO: monto total invertido (precio_compra x stock) según el filtro activo ---
+  // --- Monto total invertido (precio_compra x stock) según el filtro activo ---
   const montoInvertido = filteredProductos.reduce(
     (total, p) => total + (Number(p.precio_compra) || 0) * (Number(p.stock) || 0),
     0,
   );
 
-  // --- NUEVO: exportar el listado filtrado (con monto invertido) a Excel ---
+  // --- Exportar a Excel ---
   const handleExportExcel = () => {
     if (filteredProductos.length === 0) {
       showModal("error", "No hay productos para exportar con el filtro actual");
@@ -432,8 +588,19 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       const presNombre =
         presentacion.find((pre) => pre.id === product.idpresentacion)
           ?.nombre || "";
+      const presCorto =
+        presentacion.find((pre) => pre.id === product.idpresentacion)
+          ?.nombreCorto || "";
+      const fullPres = `${presNombre} ${product.concentracion || ""} ${presCorto}`.trim();
       const invertido =
         (Number(product.precio_compra) || 0) * (Number(product.stock) || 0);
+
+      const dias = getDiasParaVencer(product.vencimiento);
+      let estadoVenc = "Al día";
+      if (dias !== null) {
+        if (dias <= 0) estadoVenc = `Vencido (${Math.abs(dias)} d)`;
+        else if (dias <= 30) estadoVenc = `Próximo (${dias} d)`;
+      }
 
       return {
         Código: product.codigo,
@@ -442,13 +609,14 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         "Nombre Genérico": product.nombre_generico,
         Descripción: product.descripcion,
         Tipo: tipoNombre,
-        Presentación: presNombre,
+        Presentación: fullPres || presNombre,
         Laboratorio: labNombre,
-        "Precio Compra": product.precio_compra,
-        "Precio Venta": product.precio,
+        "Precio Compra": Number(product.precio_compra || 0),
+        "Precio Venta": Number(product.precio || 0),
         Stock: product.stock,
         Casilla: product.casilla,
-        Vencimiento: product.vencimiento,
+        Vencimiento: product.vencimiento ? moment(product.vencimiento).format("DD/MM/YYYY") : "S/D",
+        Estado: estadoVenc,
         "Monto Invertido": invertido,
       };
     });
@@ -457,16 +625,219 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
 
-    // Fila de resumen con el monto total invertido, al final de la hoja
+    // Fila de resumen con el monto total invertido y total de productos
     XLSX.utils.sheet_add_aoa(
       worksheet,
-      [[], ["", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]],
+      [
+        [],
+        ["", "", "", "", "", "", "", "", "", "", "", "", "Total Productos:", filteredProductos.length],
+        ["", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]
+      ],
       { origin: -1 },
     );
 
-    const fecha = new Date().toISOString().slice(0, 10);
-    const sufijo = filterVencidos ? "_vencidos" : "";
+    const fecha = moment().format("YYYY-MM-DD");
+    const sufijo = filterVencidos ? "_vencidos" : filterProximosVencer ? "_proximos_a_vencer" : "";
     XLSX.writeFile(workbook, `productos${sufijo}_${fecha}.xlsx`);
+  };
+
+  // --- Exportar a PDF (Diseño idéntico a Historial de Ventas / Dashboard) ---
+  const handleExportPDF = () => {
+    if (filteredProductos.length === 0) {
+      showModal("error", "No hay productos para exportar con el filtro actual");
+      return;
+    }
+
+    const doc = new jsPDF("landscape");
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // 🔵 Barra superior azul
+    doc.setFillColor(41, 128, 185);
+    doc.rect(0, 0, pageWidth, 20, "F");
+
+    // 🔵 LOGO
+    try {
+      doc.addImage(logo, "PNG", 14, 5, 18, 10);
+    } catch (e) {
+      console.error("Error al cargar logo:", e);
+    }
+
+    // 🔵 Título del Reporte según el filtro seleccionado
+    let tituloReporte = "REPORTE GENERAL DE INVENTARIO DE PRODUCTOS";
+    let filtroNombre = "Todos";
+    if (filterVencidos) {
+      tituloReporte = "REPORTE DE PRODUCTOS VENCIDOS";
+      filtroNombre = "Solo Vencidos";
+    } else if (filterProximosVencer) {
+      tituloReporte = "REPORTE DE PRODUCTOS PRÓXIMOS A VENCER";
+      filtroNombre = "Próximos a Vencer (30 días)";
+    } else if (filterTipo || filterLaboratorio || filterPresentacion || filterAlfabeto || searchTerm) {
+      const filtrosAplicados = [];
+      if (filterTipo) {
+        const t = tipo.find((tp) => tp.id === Number(filterTipo))?.nombre;
+        if (t) filtrosAplicados.push(`Tipo: ${t}`);
+      }
+      if (filterLaboratorio) {
+        const l = laboratorio.find((lab) => lab.id === Number(filterLaboratorio))?.laboratorioNombre;
+        if (l) filtrosAplicados.push(`Lab: ${l}`);
+      }
+      if (filterPresentacion) {
+        const p = presentacion.find((pre) => pre.id === Number(filterPresentacion))?.nombre;
+        if (p) filtrosAplicados.push(`Pres: ${p}`);
+      }
+      if (filterAlfabeto) filtrosAplicados.push(`Letra: ${filterAlfabeto}`);
+      if (searchTerm) filtrosAplicados.push(`Búsqueda: "${searchTerm}"`);
+      filtroNombre = filtrosAplicados.join(" | ");
+      tituloReporte = "REPORTE FILTRADO DE PRODUCTOS";
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(tituloReporte, pageWidth / 2, 13, { align: "center" });
+
+    doc.setTextColor(0, 0, 0);
+
+    // 🏥 DATOS DE LA FARMACIA
+    let y = 28;
+    if (configuracion && configuracion.length > 0) {
+      configuracion.forEach((item) => {
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text(item.nombre || "FARMACIA", 14, y);
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Dirección: ${item.direccion || "Central"}`, 14, y + 5);
+        doc.text(`Teléfono: ${item.telefono || "-"}`, 14, y + 9);
+      });
+    } else {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("FARMACIA", 14, y);
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Dirección: Central", 14, y + 5);
+      doc.text("Teléfono: -", 14, y + 9);
+    }
+
+    // 📅 CAJA DE INFORMACIÓN
+    doc.setFillColor(245, 247, 250);
+    doc.setDrawColor(200);
+    doc.roundedRect(pageWidth - 95, 26, 81, 20, 3, 3, "FD");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("INFORMACIÓN DEL REPORTE", pageWidth - 54, 31, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    const filtroCortado = filtroNombre.length > 32 ? filtroNombre.substring(0, 29) + "..." : filtroNombre;
+    doc.text(`Filtro: ${filtroCortado}`, pageWidth - 90, 37);
+    doc.text(`Fecha: ${moment().format("DD/MM/YYYY")}`, pageWidth - 90, 42);
+
+    // Línea separadora
+    doc.setDrawColor(41, 128, 185);
+    doc.line(14, 49, pageWidth - 14, 49);
+
+    // TITULO TABLA
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("DETALLE DE PRODUCTOS E INVENTARIO", 14, 55);
+
+    const tableColumn = [
+      "Cód.",
+      "Lote",
+      "Producto",
+      "N. Genérico",
+      "Tipo",
+      "Presentación",
+      "Laboratorio",
+      "P. Compra",
+      "P. Venta",
+      "Stock",
+      "Cas.",
+      "Vencimiento",
+      "Monto Inv."
+    ];
+
+    const tableRows = filteredProductos.map((p) => {
+      const tipoNombre = tipo.find((tp) => tp.id === p.idtipo)?.nombre || "N/A";
+      const labNombre = laboratorio.find((lab) => lab.id === p.idlaboratorio)?.laboratorioNombre || "N/A";
+      const presNombre = presentacion.find((pre) => pre.id === p.idpresentacion)?.nombre || "";
+      const presCorto = presentacion.find((pre) => pre.id === p.idpresentacion)?.nombreCorto || "";
+      const fullPres = `${presNombre} ${p.concentracion || ""} ${presCorto}`.trim();
+      const invertido = (Number(p.precio_compra) || 0) * (Number(p.stock) || 0);
+
+      return [
+        p.codigo || "S/D",
+        p.lote || "S/D",
+        p.nombre || "S/D",
+        p.nombre_generico || "S/D",
+        tipoNombre,
+        fullPres || "N/A",
+        labNombre,
+        `${Number(p.precio_compra || 0).toFixed(2)} Bs`,
+        `${Number(p.precio || 0).toFixed(2)} Bs`,
+        p.stock.toString(),
+        p.casilla.toString(),
+        p.vencimiento ? moment(p.vencimiento).format("DD/MM/YYYY") : "S/D",
+        `${invertido.toFixed(2)} Bs`
+      ];
+    });
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 58,
+      theme: "grid",
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      bodyStyles: {
+        halign: "center",
+      },
+      columnStyles: {
+        2: { halign: "left" },
+        3: { halign: "left" },
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250],
+      },
+    });
+
+    // 💰 RESUMEN TOTAL DE MONTO INVERTIDO Y PRODUCTOS
+    let finalY = doc.lastAutoTable.finalY + 8;
+    if (finalY > pageHeight - 25) {
+      doc.addPage();
+      finalY = 15;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(pageWidth - 140, finalY - 4, 126, 12, "F");
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL PRODUCTOS: ${filteredProductos.length}`, pageWidth - 135, finalY + 4);
+    doc.text(`MONTO INVERTIDO: ${montoInvertido.toFixed(2)} Bs`, pageWidth - 18, finalY + 4, { align: "right" });
+
+    // 📄 PIE DE PÁGINA
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text("Sistema de Gestion Farmaceutica", 14, pageHeight - 8);
+    doc.text(`Generado: ${new Date().toLocaleString()}`, pageWidth - 14, pageHeight - 8, { align: "right" });
+
+    const fecha = moment().format("YYYY-MM-DD");
+    const sufijo = filterVencidos ? "_vencidos" : filterProximosVencer ? "_proximos_a_vencer" : "";
+    doc.save(`reporte_productos${sufijo}_${fecha}.pdf`);
   };
 
   // Lógica de paginación
@@ -502,7 +873,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     <div className="flex h-screen relative">
       <NavBarRoot />
 
-      {/* --- AÑADIR ESTE BLOQUE AQUÍ --- */}
+      {/* --- MODAL DE NOTIFICACIONES / ALERTAS --- */}
       {modalStatus.show && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border-t-8 border-blue animate-in zoom-in duration-200">
@@ -534,6 +905,160 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
           </div>
         </div>
       )}
+
+      {/* --- MODAL DE CREACIÓN RÁPIDA (Tipo, Laboratorio, Presentación) --- */}
+      {quickModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border-t-8 border-blue-600 animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4 border-b pb-2">
+              <h3 className="text-lg font-bold text-gray-800">
+                {quickModal === "tipo" && "Agregar Nuevo Tipo"}
+                {quickModal === "laboratorio" && "Agregar Nuevo Laboratorio"}
+                {quickModal === "presentacion" && "Agregar Nueva Presentación"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setQuickModal(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {quickModal === "tipo" && (
+              <form onSubmit={handleCreateQuickTipo} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del Tipo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickTipoName}
+                    onChange={(e) => setQuickTipoName(e.target.value)}
+                    placeholder="Ej. Comprimidos, Jarabe, Suspensión..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickModal(null)}
+                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuick}
+                    className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium disabled:opacity-50"
+                  >
+                    {isSubmittingQuick ? "Guardando..." : "Guardar y Seleccionar"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {quickModal === "laboratorio" && (
+              <form onSubmit={handleCreateQuickLab} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del Laboratorio <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickLabName}
+                    onChange={(e) => setQuickLabName(e.target.value)}
+                    placeholder="Ej. Laboratorios Bagó, Pfizer..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dirección <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickLabDireccion}
+                    onChange={(e) => setQuickLabDireccion(e.target.value)}
+                    placeholder="Ej. Av. América #123"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickModal(null)}
+                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuick}
+                    className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium disabled:opacity-50"
+                  >
+                    {isSubmittingQuick ? "Guardando..." : "Guardar y Seleccionar"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {quickModal === "presentacion" && (
+              <form onSubmit={handleCreateQuickPres} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre de la Presentación <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickPresName}
+                    onChange={(e) => setQuickPresName(e.target.value)}
+                    placeholder="Ej. Caja, Frasco, Blister..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre Corto / Abreviatura <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickPresCorto}
+                    onChange={(e) => setQuickPresCorto(e.target.value)}
+                    placeholder="Ej. cja, fco, bls..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickModal(null)}
+                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuick}
+                    className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium disabled:opacity-50"
+                  >
+                    {isSubmittingQuick ? "Guardando..." : "Guardar y Seleccionar"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="p-4 flex-1 overflow-auto">
         <div className="flex flex-col items-center justify-center bg-blue text-white -mr-6 -ml-6 -mt-8 mb-7">
           <h2 className="text-3xl font-bold py-8">Productos</h2>
@@ -613,11 +1138,22 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       />
     </div>
 
-    {/* Tipo - OBLIGATORIO */}
+    {/* Tipo - OBLIGATORIO CON CREACIÓN RÁPIDA */}
     <div className="form-group space-y-2">
-      <label className="block text-sm font-medium text-black text-center">
-        Tipo
-      </label>
+      <div className="w-full flex items-center justify-between px-1">
+        <label className="text-sm font-medium text-black">
+          Tipo <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setQuickModal("tipo")}
+          className="text-xs text-white px-2 py-0.5 rounded flex items-center gap-1 shadow-sm transition hover:opacity-90 cursor-pointer"
+          style={{ background: "#2563eb", color: "#ffffff" }}
+          title="Agregar nuevo tipo"
+        >
+          <Plus size={12} /> Nuevo
+        </button>
+      </div>
       <select
         name="idtipo"
         value={formData.idtipo || ""}
@@ -649,11 +1185,22 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       />
     </div>
 
-    {/* Presentación - OBLIGATORIO */}
+    {/* Presentación - OBLIGATORIO CON CREACIÓN RÁPIDA */}
     <div className="form-group space-y-2">
-      <label className="block text-sm font-medium text-black text-center">
-        Presentación
-      </label>
+      <div className="w-full flex items-center justify-between px-1">
+        <label className="text-sm font-medium text-black">
+          Presentación <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setQuickModal("presentacion")}
+          className="text-xs text-white px-2 py-0.5 rounded flex items-center gap-1 shadow-sm transition hover:opacity-90 cursor-pointer"
+          style={{ background: "#2563eb", color: "#ffffff" }}
+          title="Agregar nueva presentación"
+        >
+          <Plus size={12} /> Nueva
+        </button>
+      </div>
       <select
         name="idpresentacion"
         value={formData.idpresentacion || ""}
@@ -670,11 +1217,22 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       </select>
     </div>
 
-    {/* Laboratorio - OBLIGATORIO */}
+    {/* Laboratorio - OBLIGATORIO CON CREACIÓN RÁPIDA */}
     <div className="form-group space-y-2">
-      <label className="block text-sm font-medium text-black text-center">
-        Laboratorio
-      </label>
+      <div className="w-full flex items-center justify-between px-1">
+        <label className="text-sm font-medium text-black">
+          Laboratorio <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setQuickModal("laboratorio")}
+          className="text-xs text-white px-2 py-0.5 rounded flex items-center gap-1 shadow-sm transition hover:opacity-90 cursor-pointer"
+          style={{ background: "#2563eb", color: "#ffffff" }}
+          title="Agregar nuevo laboratorio"
+        >
+          <Plus size={12} /> Nuevo
+        </button>
+      </div>
       <select
         name="idlaboratorio"
         value={formData.idlaboratorio || ""}
@@ -900,37 +1458,70 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   Limpiar filtros
                 </button>
 
-                {/* --- NUEVO: Botón Productos Vencidos --- */}
+                {/* --- Botón Productos Vencidos --- */}
                 <button
                   type="button"
                   onClick={() => {
                     setFilterVencidos((prev) => !prev);
+                    setFilterProximosVencer(false);
                     setCurrentPage(1);
                   }}
                   className={`flex items-center gap-1 px-3 py-1 text-sm rounded border font-medium transition ${
                     filterVencidos
-                      ? "text-white border-red-700"
+                      ? "text-white border-red-700 shadow"
                       : "text-red-700 border-red-300 hover:bg-red-50"
                   }`}
-                  style={filterVencidos ? { background: "#b91c1c" } : {}}
+                  style={filterVencidos ? { background: "#b91c1c", color: "#ffffff" } : {}}
                 >
                   <AlertTriangle size={14} />
                   {filterVencidos ? "Viendo Vencidos" : "Productos Vencidos"}
                 </button>
 
-                {/* --- NUEVO: Botón Exportar a Excel --- */}
+                {/* --- Botón Próximos a Vencer --- */}
                 <button
                   type="button"
-                  onClick={handleExportExcel}
-                  className="flex items-center gap-1 px-3 py-1 text-sm rounded border font-medium text-white hover:opacity-90 transition ml-auto"
-                  style={{ background: "#15803d" }}
+                  onClick={() => {
+                    setFilterProximosVencer((prev) => !prev);
+                    setFilterVencidos(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1 text-sm rounded border font-medium transition ${
+                    filterProximosVencer
+                      ? "text-gray-900 border-amber-500 shadow font-bold"
+                      : "text-amber-800 border-amber-300 hover:bg-amber-50"
+                  }`}
+                  style={filterProximosVencer ? { background: "#fbbf24", color: "#111827" } : {}}
                 >
-                  <FileSpreadsheet size={14} />
-                  Exportar a Excel
+                  <Clock size={14} />
+                  {filterProximosVencer ? "Viendo Próximos a Vencer" : "Próximos a Vencer (30 días)"}
                 </button>
+
+                {/* --- Botones de Exportación (PDF y Excel) --- */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    className="flex items-center gap-1.5 px-3 py-1 text-sm rounded border font-semibold text-white hover:opacity-90 shadow transition cursor-pointer"
+                    style={{ background: "#dc2626", color: "#ffffff" }}
+                    title="Exportar listado actual a PDF"
+                  >
+                    <FaFilePdf size={14} />
+                    Exportar PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    className="flex items-center gap-1.5 px-3 py-1 text-sm rounded border font-semibold text-white hover:opacity-90 shadow transition cursor-pointer"
+                    style={{ background: "#15803d", color: "#ffffff" }}
+                    title="Exportar listado actual a Excel"
+                  >
+                    <FaFileExcel size={14} />
+                    Exportar Excel
+                  </button>
+                </div>
               </div>
 
-              {/* --- NUEVO: Botones rápidos A-Z para filtro alfabético --- */}
+              {/* --- Botones rápidos A-Z para filtro alfabético --- */}
               <div className="alphabet-quick-filter flex flex-wrap gap-1 mb-4">
                 <button
                   type="button"
@@ -967,7 +1558,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                 ))}
               </div>
 
-              {/* --- NUEVO: Tarjeta con el Monto Invertido según el filtro activo --- */}
+              {/* --- Tarjeta con el Monto Invertido según el filtro activo --- */}
               <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
                 <div className="text-sm text-gray-600">
                   {filterVencidos && (
@@ -975,12 +1566,17 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                       <AlertTriangle size={14} /> Mostrando solo productos vencidos
                     </span>
                   )}
+                  {filterProximosVencer && (
+                    <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+                      <Clock size={14} /> Mostrando productos próximos a vencer (30 días)
+                    </span>
+                  )}
                 </div>
                 <div
                   className="px-4 py-2 rounded-lg border text-sm font-bold"
                   style={{ background: "#eff6ff", borderColor: "blue", color: "blue" }}
                 >
-                  Monto Invertido (según filtro actual):  {" "}
+                  Monto Invertido (según filtro actual): {" "}
                   {montoInvertido.toLocaleString("es-BO", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -1106,20 +1702,16 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                           )?.nombreCorto || "";
                         const fullPres = `${presNombre} ${product.concentracion || ""} ${presCorto}`;
 
-                        // --- NUEVO: saber si este producto en particular está vencido, para resaltarlo ---
-                        const fechaVencProducto = product.vencimiento
-                          ? new Date(product.vencimiento)
-                          : null;
-                        const estaVencido =
-                          fechaVencProducto !== null &&
-                          !isNaN(fechaVencProducto.getTime()) &&
-                          fechaVencProducto < hoy;
+                        // Saber si este producto en particular está vencido o próximo a vencer
+                        const diasRestantes = getDiasParaVencer(product.vencimiento);
+                        const estaVencido = diasRestantes !== null && diasRestantes <= 0;
+                        const estaProximo = diasRestantes !== null && diasRestantes > 0 && diasRestantes <= 30;
 
                         return (
                           <tr
                             key={product.id}
                             className={`hover:bg-gray-50 transition-colors ${
-                              estaVencido ? "bg-red-50" : ""
+                              estaVencido ? "bg-red-50" : estaProximo ? "bg-amber-50" : ""
                             }`}
                           >
                             {/* Celda Nombre con Tooltip */}
@@ -1211,10 +1803,16 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                             </td>
                             <td
                               className={`px-2 py-1.5 text-center border-r text-[10px] ${
-                                estaVencido ? "text-red-700 font-bold" : ""
+                                estaVencido
+                                  ? "text-red-700 font-bold"
+                                  : estaProximo
+                                  ? "text-amber-700 font-bold"
+                                  : ""
                               }`}
                             >
-                              {product.vencimiento}
+                              {product.vencimiento ? moment(product.vencimiento).format("DD/MM/YYYY") : "S/D"}
+                              {estaVencido && <span className="block text-[9px] text-red-600 font-semibold">(Vencido)</span>}
+                              {estaProximo && <span className="block text-[9px] text-amber-700 font-semibold">({diasRestantes} d)</span>}
                             </td>
 
                             <td className="px-2 py-1.5 flex gap-1 justify-center items-center">

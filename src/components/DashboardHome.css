@@ -92,23 +92,25 @@ input::placeholder {
   color: #9ca3af; /* Color del placeholder */
 }
 
-/* Estilo de botones */
-button {
-  background-color: #f9fafb; /* Fondo blanco para los botones */
-  color: #4b5563; /* Texto oscuro */
-  border-radius: 8px;
-  padding: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
+/* Estilos para botones de exportación en Dashboard */
+.btn-export-pdf {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #ef4444 !important;
 }
 
-button:hover {
-  background-color: #e5e7eb; /* Fondo gris claro en hover */
+.btn-export-pdf:hover {
+  background-color: #b91c1c !important;
 }
 
-button:disabled {
-  background-color: #d1d5db; /* Fondo deshabilitado */
-  cursor: not-allowed;
+.btn-export-excel {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border: 1px solid #22c55e !important;
+}
+
+.btn-export-excel:hover {
+  background-color: #15803d !important;
 }
 
 /* Gráfico de barras */
