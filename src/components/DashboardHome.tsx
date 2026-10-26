@@ -52,6 +52,7 @@ interface Product {
   presentacionNombre?: string;
   laboratorioNombre?: string;
   precio_compra?: number;
+  fecha?: string | null;
 }
 
 interface Tipo {
@@ -633,6 +634,20 @@ const DashboardHome: React.FC = () => {
     XLSX.writeFile(workbook, `reporte_vencimientos_${filtroVencimiento}_${fechaStr}.xlsx`);
   };
 
+  // Formatear fecha para visualización considerando que puede ser null
+  const formatearFecha = (fechaIso?: string | null): string => {
+    if (!fechaIso) return "Sin registro";
+    const fecha = new Date(fechaIso);
+    if (isNaN(fecha.getTime())) return "Sin registro";
+    return fecha.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // Función para exportar Stock Mínimo a PDF
   const generarPDFStockMinimo = () => {
     if (productosConMenorStock.length === 0) {
@@ -719,6 +734,7 @@ const DashboardHome: React.FC = () => {
       "Stock Actual",
       "P. Venta",
       "F. Vencimiento",
+      "Fecha Reg.",
     ];
 
     const tableRows = productosConMenorStock.map((p, index) => [
@@ -729,6 +745,7 @@ const DashboardHome: React.FC = () => {
       p.stock.toString(),
       `${Number(p.precio || 0).toFixed(2)} Bs`,
       p.vencimiento ? moment(p.vencimiento).format("DD/MM/YYYY") : "S/D",
+      formatearFecha(p.fecha),
     ]);
 
     doc.autoTable({
@@ -1389,12 +1406,13 @@ const DashboardHome: React.FC = () => {
                           <th className="p-3 font-bold bg-blue text-white text-center">Stock Actual</th>
                           <th className="p-3 font-bold bg-blue text-white text-center">P. Venta</th>
                           <th className="p-3 font-bold bg-blue text-white text-center">Vencimiento</th>
+                          <th className="p-3 font-bold bg-blue text-white text-center">Fecha Reg.</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {productosConMenorStock.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center py-8 text-gray-500 font-medium">
+                            <td colSpan={8} className="text-center py-8 text-gray-500 font-medium">
                               No hay productos con bajo inventario.
                             </td>
                           </tr>
@@ -1415,6 +1433,9 @@ const DashboardHome: React.FC = () => {
                               </td>
                               <td className="p-3 text-center text-gray-600">
                                 {p.vencimiento ? moment(p.vencimiento).format("DD/MM/YYYY") : "S/D"}
+                              </td>
+                              <td className="p-3 text-center text-gray-600 text-[11px] whitespace-nowrap">
+                                {formatearFecha(p.fecha)}
                               </td>
                             </tr>
                           ))

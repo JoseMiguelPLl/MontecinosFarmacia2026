@@ -55,7 +55,8 @@ interface Producto {
   estado?: boolean,
   idpresentacion: number,
   idlaboratorio: number,
-  idtipo: number
+  idtipo: number,
+  fecha?: string | null,
 }
 
 function HistorialVentas() {

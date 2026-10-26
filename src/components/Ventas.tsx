@@ -73,8 +73,9 @@ interface Producto {
   idlaboratorio: number;
   idtipo: number;
   lote: string;
- nombre_generico: string;
- vencimiento: string;
+  nombre_generico: string;
+  vencimiento: string;
+  fecha?: string | null;
 }
 
 interface Tipo {

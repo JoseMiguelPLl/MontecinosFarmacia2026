@@ -38,6 +38,7 @@ interface Producto {
   nombre: string;
   stock: number;
   idlaboratorio: number;
+  fecha?: string | null;
 }
 interface Configuracion {
   id: string;

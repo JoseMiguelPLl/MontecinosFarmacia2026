@@ -41,6 +41,7 @@ interface Product {
   precio_compra: number;
   lote: string;
   nombre_generico: string;
+  fecha?: string | null;
 }
 
 interface Tipo {
@@ -519,6 +520,20 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     return Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  // Formatear fecha para visualización en tablas y reportes (considera que puede ser null)
+  const formatearFecha = (fechaIso?: string | null): string => {
+    if (!fechaIso) return "Sin registro";
+    const fecha = new Date(fechaIso);
+    if (isNaN(fecha.getTime())) return "Sin registro";
+    return fecha.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // Lógica de búsqueda y filtrado (buscador + tipo + laboratorio + presentación + alfabeto + vencidos + próximos a vencer)
   const filteredProductos = products.filter((product) => {
     if (product.eliminado) return false;
@@ -616,6 +631,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         Stock: product.stock,
         Casilla: product.casilla,
         Vencimiento: product.vencimiento ? moment(product.vencimiento).format("DD/MM/YYYY") : "S/D",
+        "Fecha Registro": formatearFecha(product.fecha),
         Estado: estadoVenc,
         "Monto Invertido": invertido,
       };
@@ -630,8 +646,8 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       worksheet,
       [
         [],
-        ["", "", "", "", "", "", "", "", "", "", "", "", "Total Productos:", filteredProductos.length],
-        ["", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]
+        ["", "", "", "", "", "", "", "", "", "", "", "", "", "Total Productos:", filteredProductos.length],
+        ["", "", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]
       ],
       { origin: -1 },
     );
@@ -759,6 +775,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       "Stock",
       "Cas.",
       "Vencimiento",
+      "Fecha Reg.",
       "Monto Inv."
     ];
 
@@ -783,6 +800,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         p.stock.toString(),
         p.casilla.toString(),
         p.vencimiento ? moment(p.vencimiento).format("DD/MM/YYYY") : "S/D",
+        formatearFecha(p.fecha),
         `${invertido.toFixed(2)} Bs`
       ];
     });
@@ -793,8 +811,8 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       startY: 58,
       theme: "grid",
       styles: {
-        fontSize: 7.5,
-        cellPadding: 2,
+        fontSize: 7,
+        cellPadding: 1.8,
       },
       headStyles: {
         fillColor: [41, 128, 185],
@@ -1592,85 +1610,91 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                     <tr>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[8%]"
+                        className="px-2 py-2 text-left w-[6%]"
                       >
                         Cód.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[8%]"
+                        className="px-2 py-2 text-left w-[6%]"
                       >
                         Lote
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[12%]"
+                        className="px-2 py-2 text-left w-[11%]"
                       >
                         Nombre
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[12%]"
+                        className="px-2 py-2 text-left w-[11%]"
                       >
                         N.Generico
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[15%]"
+                        className="px-2 py-2 text-left w-[12%]"
                       >
                         Descripción
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[8%]"
+                        className="px-2 py-2 text-left w-[7%]"
                       >
                         Tipo
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[12%]"
+                        className="px-2 py-2 text-left w-[9%]"
                       >
                         Present.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[12%]"
+                        className="px-2 py-2 text-left w-[9%]"
                       >
                         Lab.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[7%]"
+                        className="px-2 py-2 text-center w-[6%]"
                       >
                         P. Compra
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[7%]"
+                        className="px-2 py-2 text-center w-[6%]"
                       >
                         Precio
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[6%]"
+                        className="px-2 py-2 text-center w-[5%]"
                       >
                         Stock
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[5%]"
+                        className="px-2 py-2 text-center w-[4%]"
                       >
                         Cas.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[8%]"
+                        className="px-2 py-2 text-center w-[7%]"
                       >
                         Venc.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[10%]"
+                        className="px-2 py-2 text-center w-[9%]"
+                      >
+                        Fecha Reg.
+                      </th>
+                      <th
+                        style={{ background: "blue" }}
+                        className="px-2 py-2 text-center w-[8%]"
                       >
                         Acciones
                       </th>
@@ -1679,7 +1703,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   <tbody className="divide-y divide-gray-200">
                     {filteredProductos.length === 0 ? (
                       <tr>
-                        <td colSpan={12} className="text-center py-4">
+                        <td colSpan={15} className="text-center py-4">
                           No hay resultados
                         </td>
                       </tr>
@@ -1813,6 +1837,10 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                               {product.vencimiento ? moment(product.vencimiento).format("DD/MM/YYYY") : "S/D"}
                               {estaVencido && <span className="block text-[9px] text-red-600 font-semibold">(Vencido)</span>}
                               {estaProximo && <span className="block text-[9px] text-amber-700 font-semibold">({diasRestantes} d)</span>}
+                            </td>
+
+                            <td className="px-2 py-1.5 text-center border-r text-[10px] text-gray-700 whitespace-nowrap">
+                              {formatearFecha(product.fecha)}
                             </td>
 
                             <td className="px-2 py-1.5 flex gap-1 justify-center items-center">

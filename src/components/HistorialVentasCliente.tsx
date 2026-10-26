@@ -67,6 +67,7 @@ interface Producto {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
+  fecha?: string | null;
 }
 interface Configuracion {
   id: string;
