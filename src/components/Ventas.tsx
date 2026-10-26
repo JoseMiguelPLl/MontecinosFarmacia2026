@@ -515,10 +515,10 @@ const hoy = new Date().toISOString().split("T")[0];
   const handleAgregarCliente = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const nombreFinal = newCliente.nombre.trim() || "S/D";
-    const ciFinal = newCliente.ci.trim() || "S/D";
-    const telefonoFinal = newCliente.telefono.trim() || "S/D";
-    const direccionFinal = newCliente.direccion.trim() || "S/D";
+    const nombreFinal = String(newCliente.nombre || "").trim() || "S/D";
+    const ciFinal = String(newCliente.ci || "").trim() || "S/D";
+    const telefonoFinal = String(newCliente.telefono || "").trim() || "S/D";
+    const direccionFinal = String(newCliente.direccion || "").trim() || "S/D";
 
     setGuardandoCliente(true);
 

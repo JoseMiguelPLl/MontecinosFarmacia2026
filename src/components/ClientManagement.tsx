@@ -14,8 +14,8 @@ import "./ClientManagement.css";
 interface Client {
   id: number;
   nombre: string;
-  ci: string;
-  telefono: string;
+  ci: string | number;
+  telefono: string | number;
   direccion: string;
   estado?: string;
   idseguro?: number | null;
@@ -145,13 +145,18 @@ const ClientManagement: React.FC = () => {
   const handleAgregar = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newNombre.trim() || !newCI.trim() || !newTelefono.trim() || !newDireccion.trim()) {
+    const cleanNombre = String(newNombre ?? "").trim();
+    const cleanCI = String(newCI ?? "").trim();
+    const cleanTelefono = String(newTelefono ?? "").trim();
+    const cleanDireccion = String(newDireccion ?? "").trim();
+
+    if (!cleanNombre || !cleanCI || !cleanTelefono || !cleanDireccion) {
       showAlert("error", "Todos los campos principales son obligatorios");
       return;
     }
   
     try {
-      let url = `http://localhost:5000/api/Clientes/Crear?nombre=${encodeURIComponent(newNombre.trim())}&ci=${encodeURIComponent(newCI.trim())}&telefono=${encodeURIComponent(newTelefono.trim())}&direccion=${encodeURIComponent(newDireccion.trim())}`;
+      let url = `http://localhost:5000/api/Clientes/Crear?nombre=${encodeURIComponent(cleanNombre)}&ci=${encodeURIComponent(cleanCI)}&telefono=${encodeURIComponent(cleanTelefono)}&direccion=${encodeURIComponent(cleanDireccion)}`;
       if (newIdSeguro) {
         url += `&idseguro=${newIdSeguro}`;
       }
@@ -238,10 +243,10 @@ const ClientManagement: React.FC = () => {
 
   const handleEdit = (client: Client) => {
     setEditClient(client.id);
-    setNewNombre(client.nombre);
-    setNewCI(client.ci);
-    setNewTelefono(client.telefono);
-    setNewDirreccion(client.direccion);
+    setNewNombre(String(client.nombre ?? ""));
+    setNewCI(String(client.ci ?? ""));
+    setNewTelefono(String(client.telefono ?? ""));
+    setNewDirreccion(String(client.direccion ?? ""));
     setNewIdSeguro(client.idseguro ? client.idseguro.toString() : "");
     setEditMode(true);
   };
@@ -254,7 +259,12 @@ const ClientManagement: React.FC = () => {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newNombre.trim() || !newCI.trim() || !newTelefono.trim() || !newDireccion.trim()) {
+    const cleanNombre = String(newNombre ?? "").trim();
+    const cleanCI = String(newCI ?? "").trim();
+    const cleanTelefono = String(newTelefono ?? "").trim();
+    const cleanDireccion = String(newDireccion ?? "").trim();
+
+    if (!cleanNombre || !cleanCI || !cleanTelefono || !cleanDireccion) {
       showAlert("error", "Todos los campos principales son obligatorios");
       return;
     }
@@ -264,7 +274,7 @@ const ClientManagement: React.FC = () => {
     try {
       // Backend: Si adquiere seguro enviar &idseguro=X, si ya no tiene enviar &idseguro=0
       const idSeguroParam = newIdSeguro ? newIdSeguro : 0;
-      const url = `http://localhost:5000/api/Clientes/Actualizar?id=${editClient}&nombre=${encodeURIComponent(newNombre.trim())}&ci=${encodeURIComponent(newCI.trim())}&telefono=${encodeURIComponent(newTelefono.trim())}&direccion=${encodeURIComponent(newDireccion.trim())}&idseguro=${idSeguroParam}`;
+      const url = `http://localhost:5000/api/Clientes/Actualizar?id=${editClient}&nombre=${encodeURIComponent(cleanNombre)}&ci=${encodeURIComponent(cleanCI)}&telefono=${encodeURIComponent(cleanTelefono)}&direccion=${encodeURIComponent(cleanDireccion)}&idseguro=${idSeguroParam}`;
 
       const response = await fetch(url, {
         method: "PUT",
@@ -280,10 +290,10 @@ const ClientManagement: React.FC = () => {
             client.id === editClient
               ? {
                   ...client,
-                  nombre: newNombre,
-                  ci: newCI,
-                  telefono: newTelefono,
-                  direccion: newDireccion,
+                  nombre: cleanNombre,
+                  ci: cleanCI,
+                  telefono: cleanTelefono,
+                  direccion: cleanDireccion,
                   idseguro: newIdSeguro ? Number(newIdSeguro) : null,
                   ...(updatedClient || {}),
                 }
