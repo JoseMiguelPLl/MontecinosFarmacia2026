@@ -39,6 +39,8 @@ function App() {
           <Route path='/proveedores' element={<SupplierManagement/>}/>
           <Route path='/seguro' element={<InsuranceManagement/>}/>
           <Route path='/seguros' element={<InsuranceManagement/>}/>
+          <Route path='/cierreCaja' element={<HistorialVentasTabs/>}/>
+          <Route path='/cierrecaja' element={<HistorialVentasTabs/>}/>
           
         </Routes>
       </Router>

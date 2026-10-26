@@ -26,7 +26,12 @@ interface Venta {
 
 interface DetalleVenta {
   productoId?: number;
+  codigo?: string;
   producto: string;
+  lote?: string;
+  vencimiento?: string;
+  fechaPublicacion?: string;
+  tieneDescuento?: boolean;
   cantidad: number;
   precioUnitario: number;
   descuento?: number;
@@ -140,7 +145,7 @@ const generarPDF = () => {
   ventas.forEach(v => {
 
     const productos = v.detalles
-      .map(d => `${d.producto} (x${d.cantidad})`)
+      .map(d => `${d.producto} (x${d.cantidad})${d.lote ? ` [Lt: ${d.lote}]` : ""}`)
       .join("\n");
 
     const precios = v.detalles
@@ -378,7 +383,8 @@ const generarPDF = () => {
             <table className="min-w-full mt-2 border text-sm">
               <thead className="bg-blue text-white">
                 <tr>
-                  <th className="p-2 bg-blue text-left">Producto</th>
+                  <th className="p-2 bg-blue text-left">Producto / Lote</th>
+                  <th className="p-2 bg-blue text-center">Código</th>
                   <th className="p-2 bg-blue text-center">Cantidad</th>
                   <th className="p-2 bg-blue text-center">Precio U.</th>
                   <th className="p-2 bg-blue text-center">Descuento</th>
@@ -388,14 +394,22 @@ const generarPDF = () => {
 
               <tbody>
                 {selectedVenta.detalles.map((d, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="p-2">{d.producto}</td>
-                    <td className="p-2 text-center">{d.cantidad}</td>
+                  <tr key={i} className="border-b hover:bg-gray-50">
+                    <td className="p-2">
+                      <p className="font-bold text-gray-800">{d.producto}</p>
+                      {(d.lote || d.vencimiento) && (
+                        <p className="text-xs text-gray-500">
+                          {d.lote ? `Lote: ${d.lote}` : ""} {d.vencimiento ? `• Vence: ${d.vencimiento}` : ""}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-2 text-center text-xs font-mono">{d.codigo || "S/D"}</td>
+                    <td className="p-2 text-center font-bold">{d.cantidad}</td>
                     <td className="p-2 text-center">{Number(d.precioUnitario).toFixed(2)} Bs</td>
                     <td className="p-2 text-center text-green-600 font-medium">
                       {d.descuento && d.descuento > 0 ? `-${Number(d.descuento).toFixed(2)} Bs` : "0.00 Bs"}
                     </td>
-                    <td className="p-2 text-center font-bold">{Number(d.totalDetalle).toFixed(2)} Bs</td>
+                    <td className="p-2 text-center font-bold text-blue-700">{Number(d.totalDetalle).toFixed(2)} Bs</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,445 +1,733 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import { Trash2 } from "react-feather";
 import { motion } from "framer-motion";
-import { ShoppingCart, Calendar } from "lucide-react";
+import { ShoppingCart, Calendar, Search, FileText, Download, RefreshCw, Eye } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import { FaRegEye } from "react-icons/fa";
 import Modal from "./Modal";
 import logo from "../img/logo1.png";
+
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => void;
     lastAutoTable: any;
   }
 }
-interface Laboratorio {
-  id: number;
-  laboratorioNombre: string;
-}
 
-interface Venta {
+interface VentaDetalleItem {
   ventaId: number;
-  fechaVenta: string;
-  totalVenta: number;
-  detalles: DetalleVenta[];
-}
-
-interface DetalleVenta {
-  productoId: number;
+  fecha: string;
+  cliente: string;
+  seguro: string;
+  tipoPago: string;
   cantidad: number;
   precioUnitario: number;
-  totalDetalle: number;
+  descuento: number;
+  total: number;
+  tieneDescuento: boolean;
 }
 
-interface Producto {
+interface ReporteProductoItem {
+  productoId: number;
+  codigo: string;
+  nombre: string;
+  nombreGenerico: string;
+  lote: string;
+  vencimiento: string;
+  fechaPublicacion?: string | null;
+  presentacion: string;
+  laboratorio: string;
+  precioParticular: number;
+  cantidadSinDescuento: number;
+  totalSinDescuento: number;
+  cantidadConDescuento: number;
+  descuentoTotal: number;
+  totalConDescuento: number;
+  segurosInvolucrados: string[];
+  cantidadTotalVendida: number;
+  subtotalBruto: number;
+  descuentoTotalConsolidado: number;
+  totalNetoConsolidado: number;
+  ventasDetalle: VentaDetalleItem[];
+}
+
+interface Seguro {
   id: number;
   nombre: string;
-  stock: number;
-  idlaboratorio: number;
-  fecha?: string | null;
+  porcentaje?: number;
+  estado?: string;
 }
+
 interface Configuracion {
-  id: string;
   nombre: string;
   telefono: string;
-  email: string;
   direccion: string;
 }
-function HistorialVentasProducto() {
-  const [ventas, setVentas] = useState<Venta[]>([]);
-  const [fechaIni, setFechaIni] = useState<string>("");
-  const [fechaFin, setFechaFin] = useState<string>("");
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
+
+const formatearFecha = (fechaStr: string | null | undefined): string => {
+  if (!fechaStr) return "S/D";
+  try {
+    const d = new Date(fechaStr);
+    if (isNaN(d.getTime())) return fechaStr;
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const anio = d.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  } catch {
+    return fechaStr;
+  }
+};
+
+const HistorialVentasProducto: React.FC = () => {
+  const hoy = new Date().toISOString().split("T")[0];
+  const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+
+  const [fechaIni, setFechaIni] = useState<string>(primerDiaMes);
+  const [fechaFin, setFechaFin] = useState<string>(hoy);
+  const [idSeguro, setIdSeguro] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const [reporte, setReporte] = useState<ReporteProductoItem[]>([]);
+  const [seguros, setSeguros] = useState<Seguro[]>([]);
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
-  const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
-  const getLaboratorioNombre = (idlaboratorio: number) => {
-    const lab = laboratorios.find((l) => l.id === idlaboratorio);
-    return lab ? lab.laboratorioNombre : "Sin laboratorio";
-  };
-  const calcularTotalGeneral = () => {
-    return getProductosVendidos().reduce(
-      (total, producto) => total + producto.total,
-      0,
-    );
-  };
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal para detalle de ventas del producto
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProducto, setSelectedProducto] = useState<ReporteProductoItem | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/Laboratorios/ListarLaboratoriosActivos")
-      .then((res) => res.json())
-      .then((data) => setLaboratorios(data))
-      .catch((err) => console.error("Error laboratorios:", err));
+    fetch("http://localhost:5000/api/Seguros/ListarSegurosActivos")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setSeguros(data))
+      .catch(() => {});
+
+    fetch("http://localhost:5000/api/Configuracions/ListarConfiguracionActivos")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setConfiguracion(data))
+      .catch(() => {});
   }, []);
-  useEffect(() => {
-    fetch(
-      "http://localhost:5000/api/Configuracions/ListarConfiguracionActivos",
-    )
-      .then((response) => response.json())
-      .then((data) => setConfiguracion(data));
-  }, []);
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const responseProductos = await fetch(
-          "http://localhost:5000/api/Productos/ListarProductosActivos",
-        );
-        const dataProductos = await responseProductos.json();
-        setProductos(dataProductos);
 
-        let url = "http://localhost:5000/api/Ventas/ListarVentasActivos";
-        if (fechaIni && fechaFin) {
-          url = `http://localhost:5000/api/Ventas/ListarVentasFecha?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
-        }
+  const fetchReporte = async () => {
+    if (!fechaIni || !fechaFin) return;
+    setLoading(true);
+    setError(null);
 
-        const responseVentas = await fetch(url);
-        const dataVentas = await responseVentas.json();
-        setVentas(dataVentas.ventas || []);
-      } catch (error) {
-        console.error("Error al obtener los datos:", error);
-      }
-    };
-
-    fetchData();
-  }, [fechaIni, fechaFin]);
-
-  const getProductosVendidos = () => {
-    const productosVendidos: Record<
-      number,
-      {
-        nombre: string;
-        laboratorio: string;
-        cantidad: number;
-        precioUnitario: number;
-        total: number;
-        stock: number;
-      }
-    > = {};
-
-    ventas?.forEach((venta) => {
-      venta.detalles?.forEach((detalle) => {
-        const productoId = detalle.productoId;
-        const producto = productos.find((p) => p.id === productoId);
-        const laboratorioNombre = producto
-          ? getLaboratorioNombre(producto.idlaboratorio)
-          : "Sin laboratorio";
-
-        productosVendidos[productoId] = {
-          nombre: producto ? producto.nombre : "Desconocido",
-          laboratorio: laboratorioNombre,
-          cantidad: 0,
-          precioUnitario: detalle.precioUnitario,
-          total: 0,
-          stock: producto ? producto.stock : 0,
-        };
-
-        productosVendidos[productoId].cantidad += detalle.cantidad;
-        productosVendidos[productoId].total += detalle.totalDetalle;
-      });
-    });
-
-    return Object.values(productosVendidos);
-  };
-
-  const handleViewDetails = (venta: Venta) => {
-    setSelectedVenta(venta);
-    setIsModalOpen(true);
-  };
-  const generarPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-
-    // 🔵 Barra superior
-    doc.setFillColor(41, 128, 185);
-    doc.rect(0, 0, pageWidth, 20, "F");
-
-    // 🔵 LOGO
-
-    doc.addImage(logo, "PNG", 14, 5, 18, 10);
-
-    // 🔵 Titulo
-    doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text("REPORTE DE VENTAS POR PRODUCTO", pageWidth / 2, 13, {
-      align: "center",
-    });
-
-    doc.setTextColor(0, 0, 0);
-
-    // 🏥 DATOS FARMACIA
-    let y = 30;
-
-    configuracion.forEach((item) => {
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(item.nombre, 14, y);
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Direccion: ${item.direccion}`, 14, y + 6);
-      doc.text(`Telefono: ${item.telefono}`, 14, y + 11);
-    });
-
-    // 📅 CAJA DE INFORMACION
-    doc.setFillColor(245, 247, 250);
-    doc.setDrawColor(200);
-
-    doc.roundedRect(pageWidth - 75, 28, 60, 22, 3, 3, "FD");
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("INFORMACION", pageWidth - 45, 34, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-
-    doc.text(`Desde: ${fechaIni}`, pageWidth - 70, 40);
-    doc.text(`Hasta: ${fechaFin}`, pageWidth - 70, 45);
-
-    // Línea separadora
-    doc.setDrawColor(41, 128, 185);
-    doc.line(14, 55, pageWidth - 14, 55);
-
-    // TITULO TABLA
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("DETALLE DE MEDICAMENTOS VENDIDOS", 14, 65);
-
-    const tableColumn = [
-      "Producto",
-      "Laboratorio",
-      "Cantidad",
-      "Precio",
-      "Stock",
-      "Total",
-    ];
-
-    const productosVendidos = getProductosVendidos();
-
-    const tableRows = productosVendidos.map((p) => [
-      p.nombre,
-      p.laboratorio,
-      p.cantidad,
-      `Bs ${p.precioUnitario.toFixed(2)}`,
-      p.stock,
-      `Bs ${p.total.toFixed(2)}`,
-    ]);
-
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 70,
-      theme: "grid",
-
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: "bold",
-        halign: "center",
-      },
-
-      bodyStyles: {
-        halign: "center",
-      },
-
-      columnStyles: {
-        0: { halign: "left" },
-      },
-
-      alternateRowStyles: {
-        fillColor: [245, 247, 250],
-      },
-    });
-
-    // 💰 TOTAL GENERAL
-
-    let finalY = doc.lastAutoTable.finalY + 12;
-
-    // 👇 VERIFICAR SI HAY ESPACIO EN LA PÁGINA
-    if (finalY > pageHeight - 30) {
-      doc.addPage();
-      finalY = 20; // posición inicial en la nueva página
+    let url = `http://localhost:5000/api/Ventas/ReporteVentasPorProducto?fechaIni=${fechaIni}&fechafin=${fechaFin}`;
+    if (idSeguro !== "") {
+      url += `&idseguro=${idSeguro}`;
     }
 
-    doc.setFillColor(240, 240, 240);
-    doc.rect(pageWidth - 85, finalY - 6, 70, 15, "F");
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Error al obtener reporte por producto (${res.status})`);
+      }
+      const data: ReporteProductoItem[] = await res.json();
+      setReporte(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error al cargar reporte de ventas por producto:", err);
+      setError(err instanceof Error ? err.message : "Error al conectar con el servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("TOTAL GENERAL:", pageWidth - 80, finalY + 4);
+  useEffect(() => {
+    fetchReporte();
+  }, [fechaIni, fechaFin, idSeguro]);
 
-    doc.setFont("helvetica", "normal");
-    doc.text(
-      `${calcularTotalGeneral().toFixed(2)} Bs`,
-      pageWidth - 20,
-      finalY + 4,
-      { align: "right" },
+  // Filtrado local por buscador
+  const filteredReporte = reporte.filter((p) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      (p.nombre && p.nombre.toLowerCase().includes(term)) ||
+      (p.nombreGenerico && p.nombreGenerico.toLowerCase().includes(term)) ||
+      (p.codigo && p.codigo.toLowerCase().includes(term)) ||
+      (p.lote && p.lote.toLowerCase().includes(term)) ||
+      (p.laboratorio && p.laboratorio.toLowerCase().includes(term))
     );
+  });
 
-    // 📄 PIE DE PAGINA
-    doc.setFontSize(8);
-    doc.setTextColor(120);
+  // Totales generales
+  const totalCantidadVendida = filteredReporte.reduce(
+    (acc, p) => acc + (p.cantidadTotalVendida || 0),
+    0
+  );
+  const totalSubtotalBruto = filteredReporte.reduce(
+    (acc, p) => acc + (p.subtotalBruto || 0),
+    0
+  );
+  const totalDescuentosConsolidados = filteredReporte.reduce(
+    (acc, p) => acc + (p.descuentoTotalConsolidado || 0),
+    0
+  );
+  const totalNetoRecaudado = filteredReporte.reduce(
+    (acc, p) => acc + (p.totalNetoConsolidado || 0),
+    0
+  );
 
-    doc.text("Sistema de Gestion Farmaceutica", 14, pageHeight - 10);
+  const handleOpenDetalle = (item: ReporteProductoItem) => {
+    setSelectedProducto(item);
+    setIsModalOpen(true);
+  };
 
-    doc.text(
-      `Generado: ${new Date().toLocaleString()}`,
-      pageWidth - 14,
-      pageHeight - 10,
-      { align: "right" },
-    );
+  // --- EXPORTAR A PDF ---
+  const generarPDF = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
 
-    doc.save(`reporte_ventas_${fechaIni}_${fechaFin}.pdf`);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Barra superior
+      doc.setFillColor(30, 64, 175);
+      doc.rect(0, 0, pageWidth, 18, "F");
+
+      // Logo
+      try {
+        doc.addImage(logo, "PNG", 14, 4, 18, 10);
+      } catch (e) {}
+
+      // Título
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.text("REPORTE DE VENTAS POR PRODUCTO Y SEGURO", pageWidth / 2, 12, {
+        align: "center",
+      });
+
+      doc.setTextColor(0, 0, 0);
+
+      // Datos Farmacia
+      let y = 26;
+      configuracion.forEach((item) => {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(item.nombre, 14, y);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Dirección: ${item.direccion} | Teléfono: ${item.telefono}`, 14, y + 4);
+        y += 7;
+      });
+
+      // Caja Información
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(pageWidth - 85, 22, 71, 20, 2, 2, "FD");
+
+      const seguroFiltradoTexto =
+        idSeguro === ""
+          ? "Todos los clientes"
+          : idSeguro === "0"
+          ? "Solo Particulares"
+          : seguros.find((s) => s.id === Number(idSeguro))?.nombre || `Seguro #${idSeguro}`;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMACIÓN DE FILTROS", pageWidth - 50, 27, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.text(`Período: ${fechaIni} al ${fechaFin}`, pageWidth - 82, 32);
+      doc.text(`Filtro Seguro: ${seguroFiltradoTexto}`, pageWidth - 82, 36);
+      doc.text(`Generado: ${new Date().toLocaleString()}`, pageWidth - 82, 40);
+
+      doc.setDrawColor(30, 64, 175);
+      doc.setLineWidth(0.4);
+      doc.line(14, 45, pageWidth - 14, 45);
+
+      // Tabla Formateada con desglose por producto
+      const tableRows: any[] = [];
+
+      filteredReporte.forEach((p, idx) => {
+        const bloqueParticular =
+          p.cantidadSinDescuento > 0
+            ? `Particular: ${p.cantidadSinDescuento} u. × Bs ${Number(p.precioParticular).toFixed(2)} = Bs ${Number(p.totalSinDescuento).toFixed(2)}`
+            : "Particular: 0 u. (Bs 0.00)";
+
+        const bloqueSeguro =
+          p.cantidadConDescuento > 0
+            ? `Seguro [${p.segurosInvolucrados?.join(", ") || "Convenio"}]: ${p.cantidadConDescuento} u. × Bs ${Number(p.precioParticular).toFixed(2)} (Desc: -Bs ${Number(p.descuentoTotal).toFixed(2)}) = Bs ${Number(p.totalConDescuento).toFixed(2)}`
+            : "Seguro: 0 u. (Bs 0.00)";
+
+        tableRows.push([
+          idx + 1,
+          `${p.nombre}\nLote: ${p.lote || "S/D"} | Vence: ${p.vencimiento || "S/D"}`,
+          `${p.presentacion || "S/D"}\n${p.laboratorio || "S/D"}`,
+          `Bs ${Number(p.precioParticular).toFixed(2)}`,
+          bloqueParticular,
+          bloqueSeguro,
+          `${p.cantidadTotalVendida} u.`,
+          p.descuentoTotalConsolidado > 0
+            ? `-Bs ${Number(p.descuentoTotalConsolidado).toFixed(2)}`
+            : "Bs 0.00",
+          `Bs ${Number(p.totalNetoConsolidado).toFixed(2)}`,
+        ]);
+      });
+
+      doc.autoTable({
+        head: [
+          [
+            "#",
+            "Producto / Lote / Vencimiento",
+            "Presentación / Laboratorio",
+            "P. Normal",
+            "Ventas Particulares (Sin Descuento)",
+            "Ventas Seguro (Con Descuento)",
+            "Cant. Total",
+            "Desc. Total",
+            "Total Neto",
+          ],
+        ],
+        body: tableRows,
+        startY: 48,
+        theme: "grid",
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [30, 64, 175],
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        columnStyles: {
+          0: { halign: "center" },
+          1: { halign: "left" },
+          2: { halign: "left" },
+          3: { halign: "center" },
+          4: { halign: "left" },
+          5: { halign: "left" },
+          6: { halign: "center", fontStyle: "bold" },
+          7: { halign: "right", textColor: [185, 28, 28] },
+          8: { halign: "right", fontStyle: "bold", textColor: [30, 64, 175] },
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+      });
+
+      // Total General al pie
+      let finalY = doc.lastAutoTable.finalY + 8;
+      if (finalY > pageHeight - 25) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(pageWidth - 110, finalY - 4, 96, 16, "F");
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        `Total Unidades: ${totalCantidadVendida} u. | Descuentos: -Bs ${totalDescuentosConsolidados.toFixed(2)}`,
+        pageWidth - 105,
+        finalY + 2
+      );
+      doc.setFontSize(11);
+      doc.text(
+        `TOTAL NETO GENERAL: Bs ${totalNetoRecaudado.toFixed(2)}`,
+        pageWidth - 105,
+        finalY + 8
+      );
+
+      doc.save(`reporte_ventas_producto_${fechaIni}_${fechaFin}.pdf`);
+    } catch (err) {
+      console.error("Error al exportar PDF por producto:", err);
+    }
+  };
+
+  // --- EXPORTAR A EXCEL (.XLSX) ---
+  const generarExcel = () => {
+    try {
+      const rowsExcel = filteredReporte.map((p, idx) => ({
+        "Nº": idx + 1,
+        "Código": p.codigo || "S/D",
+        "Producto": p.nombre,
+        "Nombre Genérico": p.nombreGenerico || "",
+        "Presentación": p.presentacion || "",
+        "Laboratorio": p.laboratorio || "",
+        "Lote": p.lote || "S/D",
+        "Vencimiento": p.vencimiento || "S/D",
+        "Fecha Registro": formatearFecha(p.fechaPublicacion),
+        "Precio Particular": Number(p.precioParticular).toFixed(2),
+        "Cant. Particular": p.cantidadSinDescuento,
+        "Total Particular (Bs)": Number(p.totalSinDescuento).toFixed(2),
+        "Cant. Seguro": p.cantidadConDescuento,
+        "Descuento Seguro (Bs)": Number(p.descuentoTotal).toFixed(2),
+        "Total Seguro (Bs)": Number(p.totalConDescuento).toFixed(2),
+        "Seguros Involucrados": p.segurosInvolucrados?.join(", ") || "Ninguno",
+        "Cantidad Total Vendida": p.cantidadTotalVendida,
+        "Subtotal Bruto (Bs)": Number(p.subtotalBruto).toFixed(2),
+        "Descuento Consolidado (Bs)": Number(p.descuentoTotalConsolidado).toFixed(2),
+        "Total Neto Consolidado (Bs)": Number(p.totalNetoConsolidado).toFixed(2),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rowsExcel);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "VentasPorProducto");
+
+      XLSX.writeFile(wb, `reporte_ventas_producto_${fechaIni}_${fechaFin}.xlsx`);
+    } catch (err) {
+      console.error("Error al exportar Excel por producto:", err);
+    }
   };
 
   return (
-    <div>
-      <div className="flex gap-4 mb-4">
-        <input
-          type="date"
-          value={fechaIni}
-          onChange={(e) => setFechaIni(e.target.value)}
-          className="w-full px-4 py-2 border rounded"
-        />
-        <input
-          type="date"
-          value={fechaFin}
-          onChange={(e) => setFechaFin(e.target.value)}
-          className="w-full px-4 py-2 border rounded"
-        />
-        <button
-          onClick={generarPDF}
-          className="bg-blue text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors shadow-md"
-        >
-          Exportar a PDF
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border rounded shadow">
-          <thead className="bg-blue-500 text-white uppercase text-sm">
-            <tr>
-              <th className="px-6 py-3 bg-blue text-left">Producto</th>
-              <th className="px-6 py-3 bg-blue text-left">Laboratorio</th>
-              <th className="px-6 py-3 bg-blue text-left">Cantidad</th>
-              <th className="px-6 py-3 bg-blue text-left">Stock Actual</th>
-              <th className="px-6 py-3 bg-blue text-left">Precio Unitario</th>
-              <th className="px-6 py-3 bg-blue text-left">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getProductosVendidos().map((producto, index) => (
-              <tr key={index} className="border-b hover:bg-gray-50">
-                <td className="p-3">{producto.nombre}</td>
-                <td className="p-3">{producto.laboratorio}</td>
-                <td className="p-3">{producto.cantidad}</td>
-                <td className="p-3">{producto.stock}</td>
-                <td className="p-3">{producto.precioUnitario.toFixed(2)} Bs</td>
-                <td className="p-3">{producto.total.toFixed(2)} Bs</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4">
-        <label className="text-lg font-bold">
-          Total General: {calcularTotalGeneral().toFixed(2)} Bs
-        </label>
-      </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4 w-full max-w-4xl"
-        >
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="flex items-center gap-2 mb-6">
-              <ShoppingCart className="h-5 w-5 text-blue-600" />
-              <h3 className="text-xl font-bold text-blue-600">
-                Detalles de la Venta
-              </h3>
+    <div className="space-y-6">
+      {/* Controles de Filtro */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex flex-wrap items-end gap-3 justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Fecha Desde
+              </label>
+              <input
+                type="date"
+                value={fechaIni}
+                onChange={(e) => setFechaIni(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
             </div>
 
-            {selectedVenta && (
-              <>
-                <div className="mb-6">
-                  <p className="text-gray-700">
-                    <span className="font-bold">Fecha:</span>{" "}
-                    {selectedVenta.fechaVenta}
-                  </p>
-                  <p className="text-gray-700">
-                    <span className="font-bold">Total Venta:</span>{" "}
-                    {selectedVenta.totalVenta.toFixed(2)} Bs
-                  </p>
-                </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Fecha Hasta
+              </label>
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white border rounded shadow">
-                    <thead className="bg-blue text-white uppercase text-sm">
-                      <tr>
-                        <th className="px-6 py-3 bg-blue text-left">
-                          Producto
-                        </th>
-                        <th className="px-6 py-3 bg-blue  text-left">
-                          Cantidad
-                        </th>
-                        <th className="px-6 py-3 bg-blue text-left">
-                          Precio Unit.
-                        </th>
-                        <th className="px-6 py-3 bg-blue text-left">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedVenta.detalles?.map((detalle, index) => {
-                        const producto = productos.find(
-                          (p) => p.id === detalle.productoId,
-                        );
-                        return (
-                          <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="p-3">
-                              {producto ? producto.nombre : "Desconocido"}
-                            </td>
-                            <td className="p-3">{detalle.cantidad}</td>
-                            <td className="p-3">
-                              {detalle.precioUnitario.toFixed(2)} Bs
-                            </td>
-                            <td className="p-3">
-                              {detalle.totalDetalle.toFixed(2)} Bs
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Filtrar por Seguro
+              </label>
+              <select
+                value={idSeguro}
+                onChange={(e) => setIdSeguro(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[170px]"
+              >
+                <option value="">Todos los clientes / seguros</option>
+                <option value="0">Particular (Sin Seguro)</option>
+                {seguros.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre} {s.porcentaje ? `(${s.porcentaje}%)` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                <div className="mt-4 flex justify-end">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => generarPDF(selectedVenta)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-                  >
-                    Generar PDF
-                  </motion.button>
-                </div>
-              </>
-            )}
+            <button
+              onClick={fetchReporte}
+              disabled={loading}
+              className="mt-5 flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+              Actualizar
+            </button>
           </div>
-        </motion.div>
+
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <button
+              onClick={generarExcel}
+              disabled={filteredReporte.length === 0}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50"
+            >
+              <Download size={16} />
+              Excel
+            </button>
+
+            <button
+              onClick={generarPDF}
+              disabled={filteredReporte.length === 0}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50"
+            >
+              <FileText size={16} />
+              PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Buscador de medicamentos */}
+        <div className="mt-3 relative">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar medicamento por nombre, genérico, lote o laboratorio..."
+            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+          <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+        </div>
+      </div>
+
+      {loading && (
+        <div className="text-center py-10 bg-white rounded-xl border border-gray-200">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-2" />
+          <p className="text-gray-500 text-sm">Cargando reporte consolidado por producto...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+          <p className="text-red-700 text-sm font-medium">{error}</p>
+        </div>
+      )}
+
+      {!loading && (
+        <>
+          {/* Tarjetas Resumen */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+              <p className="text-xs text-gray-500 font-medium">Medicamentos Distintos</p>
+              <p className="text-xl font-bold text-gray-800 mt-1">{filteredReporte.length}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+              <p className="text-xs text-gray-500 font-medium">Unidades Vendidas</p>
+              <p className="text-xl font-bold text-gray-800 mt-1">{totalCantidadVendida} u.</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+              <p className="text-xs text-gray-500 font-medium">Descuentos Seguro</p>
+              <p className="text-xl font-bold text-red-600 mt-1">
+                -Bs {totalDescuentosConsolidados.toFixed(2)}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+              <p className="text-xs text-gray-500 font-semibold text-blue-700">Total Neto Recaudado</p>
+              <p className="text-xl font-extrabold text-blue-700 mt-1">
+                Bs {totalNetoRecaudado.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* Tabla de Productos con Bloques Diferenciados */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-blue-600 text-white text-xs uppercase">
+                  <tr>
+                    <th className="py-3 px-3 text-left">Producto / Detalle</th>
+                    <th className="py-3 px-3 text-center">Lote / Vencimiento</th>
+                    <th className="py-3 px-3 text-left">Ventas Particulares (Sin Desc.)</th>
+                    <th className="py-3 px-3 text-left">Ventas Convenio (Con Desc.)</th>
+                    <th className="py-3 px-3 text-right">Total Consolidado</th>
+                    <th className="py-3 px-3 text-center">Detalle</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredReporte.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-gray-400">
+                        No se registraron ventas de productos en este período.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredReporte.map((p) => (
+                      <tr key={p.productoId} className="hover:bg-gray-50">
+                        {/* Producto */}
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-gray-900">{p.nombre}</p>
+                          <div className="text-xs text-gray-500 space-x-1">
+                            <span>{p.presentacion || "S/D"}</span>
+                            <span>•</span>
+                            <span className="font-medium text-gray-700">{p.laboratorio || "S/D"}</span>
+                          </div>
+                          {p.codigo && p.codigo !== "S/D" && (
+                            <span className="text-[11px] text-gray-400 font-mono">
+                              Cód: {p.codigo}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Lote / Vencimiento */}
+                        <td className="py-3 px-3 text-center text-xs">
+                          <p className="font-medium text-gray-800">
+                            Lote: <span className="font-bold">{p.lote || "S/D"}</span>
+                          </p>
+                          <p className="text-gray-500 mt-0.5">
+                            Vence: <span className="font-semibold text-blue-700">{p.vencimiento || "S/D"}</span>
+                          </p>
+                          {p.fechaPublicacion && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              Reg: {formatearFecha(p.fechaPublicacion)}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Ventas Particulares (Sin Descuento) */}
+                        <td className="py-3 px-3 text-xs bg-gray-50/50">
+                          {p.cantidadSinDescuento > 0 ? (
+                            <div>
+                              <p className="font-bold text-gray-800">
+                                {p.cantidadSinDescuento} u. × Bs {Number(p.precioParticular).toFixed(2)}
+                              </p>
+                              <p className="text-gray-600 font-semibold mt-0.5">
+                                Total: Bs {Number(p.totalSinDescuento).toFixed(2)}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">0 u. (Bs 0.00)</span>
+                          )}
+                        </td>
+
+                        {/* Ventas Seguro (Con Descuento) */}
+                        <td className="py-3 px-3 text-xs bg-blue-50/30">
+                          {p.cantidadConDescuento > 0 ? (
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-blue-900">
+                                  {p.cantidadConDescuento} u.
+                                </span>
+                                {p.segurosInvolucrados?.map((seg, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-200"
+                                  >
+                                    {seg}
+                                  </span>
+                                ))}
+                              </div>
+                              <p className="text-red-600 font-semibold mt-0.5">
+                                Descuento: -Bs {Number(p.descuentoTotal).toFixed(2)}
+                              </p>
+                              <p className="font-bold text-gray-900 mt-0.5">
+                                Total: Bs {Number(p.totalConDescuento).toFixed(2)}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">0 u. (Bs 0.00)</span>
+                          )}
+                        </td>
+
+                        {/* Total Consolidado */}
+                        <td className="py-3 px-3 text-right">
+                          <p className="text-base font-extrabold text-blue-700">
+                            Bs {Number(p.totalNetoConsolidado).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-600 font-bold mt-0.5">
+                            {p.cantidadTotalVendida} unidades
+                          </p>
+                          {p.descuentoTotalConsolidado > 0 && (
+                            <p className="text-[11px] text-red-600 font-medium">
+                              Ahorro: -Bs {Number(p.descuentoTotalConsolidado).toFixed(2)}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Detalle */}
+                        <td className="py-3 px-3 text-center">
+                          <button
+                            onClick={() => handleOpenDetalle(p)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Ver ventas individuales de este producto"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal de Detalle de Ventas del Producto */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        {selectedProducto && (
+          <div className="space-y-4">
+            <div className="border-b pb-3">
+              <h3 className="text-lg font-bold text-blue-700">
+                {selectedProducto.nombre}
+              </h3>
+              <p className="text-xs text-gray-500">
+                Lote: {selectedProducto.lote || "S/D"} • Vencimiento: {selectedProducto.vencimiento || "S/D"} • Laboratorio: {selectedProducto.laboratorio || "S/D"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-lg text-center text-xs">
+              <div>
+                <p className="text-gray-500 font-medium">Total Unidades</p>
+                <p className="text-base font-bold text-gray-800 mt-0.5">
+                  {selectedProducto.cantidadTotalVendida} u.
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-medium">Descuentos Seguro</p>
+                <p className="text-base font-bold text-red-600 mt-0.5">
+                  -Bs {Number(selectedProducto.descuentoTotalConsolidado).toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-medium">Total Neto</p>
+                <p className="text-base font-extrabold text-blue-700 mt-0.5">
+                  Bs {Number(selectedProducto.totalNetoConsolidado).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto rounded-lg border">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-100 text-gray-700 uppercase">
+                  <tr>
+                    <th className="p-2 text-left">Nº Venta</th>
+                    <th className="p-2 text-left">Fecha</th>
+                    <th className="p-2 text-left">Cliente</th>
+                    <th className="p-2 text-left">Seguro</th>
+                    <th className="p-2 text-center">Cant.</th>
+                    <th className="p-2 text-center">P. Unitario</th>
+                    <th className="p-2 text-center">Descuento</th>
+                    <th className="p-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {selectedProducto.ventasDetalle?.map((v, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="p-2 font-semibold text-blue-700">#{v.ventaId}</td>
+                      <td className="p-2 text-gray-600">{v.fecha}</td>
+                      <td className="p-2 font-medium">{v.cliente}</td>
+                      <td className="p-2">
+                        {v.seguro && v.seguro !== "Particular" ? (
+                          <span className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                            {v.seguro}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic">Particular</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-center font-bold">{v.cantidad}</td>
+                      <td className="p-2 text-center">Bs {Number(v.precioUnitario).toFixed(2)}</td>
+                      <td className="p-2 text-center text-red-600 font-medium">
+                        {v.descuento > 0 ? `-Bs ${Number(v.descuento).toFixed(2)}` : "Bs 0.00"}
+                      </td>
+                      <td className="p-2 text-right font-bold text-gray-900">
+                        Bs {Number(v.total).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
-}
+};
 
 export default HistorialVentasProducto;
