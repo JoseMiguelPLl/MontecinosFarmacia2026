@@ -15,6 +15,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import Presentacion from './components/presentacion';
 import HistorialVentasTabs from './components/HistorialVentasTab';
 import SupplierManagement from './components/SupplierManagement';
+import InsuranceManagement from './components/InsuranceManagement';
 
 function App() {
   return (
@@ -36,6 +37,8 @@ function App() {
           <Route path='/presentacion' element={<PharmacyUnits/>}/>
           <Route path='/proveedor' element={<SupplierManagement/>}/>
           <Route path='/proveedores' element={<SupplierManagement/>}/>
+          <Route path='/seguro' element={<InsuranceManagement/>}/>
+          <Route path='/seguros' element={<InsuranceManagement/>}/>
           
         </Routes>
       </Router>

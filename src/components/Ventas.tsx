@@ -56,7 +56,14 @@ interface Clientes {
   ci: string;
   telefono: number;
   direccion: string;
+  idseguro?: number | null;
   eliminado?: boolean;
+}
+
+interface Seguro {
+  id: number;
+  nombre: string;
+  estado?: string;
 }
 
 interface Producto {
@@ -177,6 +184,8 @@ function obtenerDiasRestantes(fechaVencimientoStr: string) {
 
 function Ventas() {
   const [usuarios, setUsuarios] = useState<Clientes[]>([]);
+  const [seguros, setSeguros] = useState<Seguro[]>([]);
+  const [filterClienteSeguro, setFilterClienteSeguro] = useState("");
   
 const hoy = new Date().toISOString().split("T")[0];
   const [producto, setProducto] = useState<Producto[]>([]);
@@ -222,6 +231,7 @@ const hoy = new Date().toISOString().split("T")[0];
     ci: "",
     telefono: "",
     direccion: "",
+    idseguro: "",
   });
   const [guardandoCliente, setGuardandoCliente] = useState(false);
 
@@ -299,6 +309,18 @@ const hoy = new Date().toISOString().split("T")[0];
       );
       const dataPresentacion = await responsePresentacion.json();
       setPresentacion(dataPresentacion);
+
+      try {
+        const responseSeguros = await fetch(
+          "http://localhost:5000/api/Seguros/ListarSegurosActivos"
+        );
+        if (responseSeguros.ok) {
+          const dataSeguros = await responseSeguros.json();
+          setSeguros(dataSeguros);
+        }
+      } catch (err) {
+        console.error("Error al obtener seguros en ventas:", err);
+      }
     };
 
     fetchData();
@@ -344,7 +366,7 @@ const hoy = new Date().toISOString().split("T")[0];
 
   // --- NUEVO: manejar cambios del formulario de nuevo cliente ---
   const handleNewClienteChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setNewCliente((prev) => ({ ...prev, [name]: value }));
@@ -362,16 +384,19 @@ const hoy = new Date().toISOString().split("T")[0];
     setGuardandoCliente(true);
 
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/Clientes/Crear?nombre=${encodeURIComponent(
-          nombreFinal
-        )}&ci=${encodeURIComponent(ciFinal)}&telefono=${encodeURIComponent(
-          telefonoFinal
-        )}&direccion=${encodeURIComponent(direccionFinal)}`,
-        {
-          method: "POST",
-        }
-      );
+      let url = `http://localhost:5000/api/Clientes/Crear?nombre=${encodeURIComponent(
+        nombreFinal
+      )}&ci=${encodeURIComponent(ciFinal)}&telefono=${encodeURIComponent(
+        telefonoFinal
+      )}&direccion=${encodeURIComponent(direccionFinal)}`;
+
+      if (newCliente.idseguro) {
+        url += `&idseguro=${newCliente.idseguro}`;
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Error al crear el cliente.");
@@ -386,7 +411,7 @@ const hoy = new Date().toISOString().split("T")[0];
       setSelectedUser(nuevoCliente);
 
       // Limpiar el formulario y cerrarlo
-      setNewCliente({ nombre: "", ci: "", telefono: "", direccion: "" });
+      setNewCliente({ nombre: "", ci: "", telefono: "", direccion: "", idseguro: "" });
       setShowAddCliente(false);
 
       setModal({
@@ -668,13 +693,23 @@ const hoy = new Date().toISOString().split("T")[0];
     });
   };
 
-  const filteredUsuarios = search
-    ? usuarios.filter(
-      (usuario) =>
-        !usuario.eliminado &&
-        usuario.ci.toLowerCase().includes(search.toLowerCase()) ||
-        usuario.nombre.toLowerCase().includes(search.toLowerCase())
-    )
+  const filteredUsuarios = (search.trim() || filterClienteSeguro)
+    ? usuarios.filter((usuario) => {
+        if (usuario.eliminado) return false;
+        const matchesSearch =
+          !search.trim() ||
+          (usuario.ci && String(usuario.ci).toLowerCase().includes(search.toLowerCase())) ||
+          (usuario.nombre && usuario.nombre.toLowerCase().includes(search.toLowerCase()));
+
+        const matchesSeguro =
+          filterClienteSeguro === ""
+            ? true
+            : filterClienteSeguro === "sin_seguro"
+            ? !usuario.idseguro
+            : usuario.idseguro === Number(filterClienteSeguro);
+
+        return matchesSearch && matchesSeguro;
+      })
     : [];
 
   // --- NUEVO: limpiar filtros de Productos Disponibles ---
@@ -839,6 +874,24 @@ const hoy = new Date().toISOString().split("T")[0];
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                         />
                       </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Seguro Médico (Opcional)
+                        </label>
+                        <select
+                          name="idseguro"
+                          value={newCliente.idseguro}
+                          onChange={handleNewClienteChange}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                        >
+                          <option value="">Particular (Sin Seguro)</option>
+                          {seguros.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                    
                     <motion.button
@@ -853,14 +906,29 @@ const hoy = new Date().toISOString().split("T")[0];
                   </motion.form>
                 )}
 
-                <div className="relative mb-4">
-                  <input
-                    type="text"
-                    placeholder="Buscar cliente..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                  />
+                <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente (Nombre o CI)..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-3 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <select
+                    value={filterClienteSeguro}
+                    onChange={(e) => setFilterClienteSeguro(e.target.value)}
+                    className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 text-gray-700 min-w-[150px]"
+                  >
+                    <option value="">Todos los seguros</option>
+                    <option value="sin_seguro">Particular (Sin seguro)</option>
+                    {seguros.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="max-h-64 overflow-y-auto rounded-lg border">
@@ -870,6 +938,7 @@ const hoy = new Date().toISOString().split("T")[0];
                         <th className="px-3 py-2 text-left bg-blue font-medium">Nombre</th>
                         <th className="px-3 py-2 text-left bg-blue font-medium">CI</th>
                         <th className="px-3 py-2 text-left bg-blue font-medium">Teléfono</th>
+                        <th className="px-3 py-2 text-left bg-blue font-medium">Seguro</th>
                         <th className="px-3 py-2 text-center bg-blue font-medium">Acción</th>
                       </tr>
                     </thead>
@@ -882,9 +951,18 @@ const hoy = new Date().toISOString().split("T")[0];
                           whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.03)" }}
                           className="border-t"
                         >
-                          <td className="px-3 py-2">{usuario.nombre}</td>
+                          <td className="px-3 py-2 font-medium">{usuario.nombre}</td>
                           <td className="px-3 py-2">{usuario.ci}</td>
                           <td className="px-3 py-2">{usuario.telefono}</td>
+                          <td className="px-3 py-2">
+                            {usuario.idseguro ? (
+                              <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-medium border border-blue-200">
+                                {seguros.find((s) => s.id === usuario.idseguro)?.nombre || `Seguro #${usuario.idseguro}`}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Particular</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-center">
                             <motion.button
                               whileHover={{ scale: 1.05 }}
@@ -957,6 +1035,14 @@ const hoy = new Date().toISOString().split("T")[0];
         <span className="text-gray-500 font-medium">Teléfono:</span>
         <p>{selectedUser.telefono}</p>
       </div>
+      {selectedUser.idseguro && (
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 font-medium">Seguro:</span>
+          <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+            {seguros.find((s) => s.id === selectedUser.idseguro)?.nombre || `Seguro #${selectedUser.idseguro}`}
+          </span>
+        </div>
+      )}
     </div>
 
     {selectedProducto.length > 0 && (
