@@ -37,11 +37,20 @@ interface Product {
   idpresentacion: number;
   idlaboratorio: number;
   idtipo: number;
+  idproveedor?: number | null;
   eliminado?: boolean;
   precio_compra: number;
   lote: string;
   nombre_generico: string;
   fecha?: string | null;
+}
+
+interface Proveedor {
+  id: number;
+  nombre: string;
+  celular: string;
+  estado?: string;
+  eliminado?: boolean;
 }
 
 interface Tipo {
@@ -90,6 +99,7 @@ const initialProductState: Partial<Product> = {
   idpresentacion: 0,
   idlaboratorio: 0,
   idtipo: 0,
+  idproveedor: 0,
   precio_compra: 0,
   lote: "",
   nombre_generico: "",
@@ -98,7 +108,7 @@ const initialProductState: Partial<Product> = {
 // Letras del abecedario para el filtro alfabético
 const LETRAS_ALFABETO = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
 
-type QuickModalType = "tipo" | "laboratorio" | "presentacion" | null;
+type QuickModalType = "tipo" | "laboratorio" | "presentacion" | "proveedor" | null;
 
 // Componente principal
 const ProductManagement: React.FC = () => {
@@ -106,6 +116,7 @@ const ProductManagement: React.FC = () => {
   const [tipo, setTipos] = useState<Tipo[]>([]);
   const [presentacion, setPresentacion] = useState<Presentacion[]>([]);
   const [laboratorio, setLaboratorio] = useState<Laboratory[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
   const [editProducto, setEditProducto] = useState<Product | null>(null);
   const [formData, setFormData] =
@@ -123,17 +134,20 @@ const ProductManagement: React.FC = () => {
   const [filterTipo, setFilterTipo] = useState<string>("");
   const [filterLaboratorio, setFilterLaboratorio] = useState<string>("");
   const [filterPresentacion, setFilterPresentacion] = useState<string>("");
+  const [filterProveedor, setFilterProveedor] = useState<string>("");
   const [filterAlfabeto, setFilterAlfabeto] = useState<string>("");
   const [filterVencidos, setFilterVencidos] = useState<boolean>(false);
   const [filterProximosVencer, setFilterProximosVencer] = useState<boolean>(false);
 
-  // --- Estados para creación rápida (Tipo, Laboratorio, Presentación) ---
+  // --- Estados para creación rápida (Tipo, Laboratorio, Presentación, Proveedor) ---
   const [quickModal, setQuickModal] = useState<QuickModalType>(null);
   const [quickTipoName, setQuickTipoName] = useState("");
   const [quickLabName, setQuickLabName] = useState("");
   const [quickLabDireccion, setQuickLabDireccion] = useState("");
   const [quickPresName, setQuickPresName] = useState("");
   const [quickPresCorto, setQuickPresCorto] = useState("");
+  const [quickProvName, setQuickProvName] = useState("");
+  const [quickProvCelular, setQuickProvCelular] = useState("");
   const [isSubmittingQuick, setIsSubmittingQuick] = useState(false);
 
   // Cargar datos iniciales
@@ -168,6 +182,16 @@ const ProductManagement: React.FC = () => {
         setPresentacion(dataPresentacion);
 
         try {
+          const provRes = await fetch("http://localhost:5000/api/Proveedores/ListarProveedoresActivos");
+          if (provRes.ok) {
+            const dataProv = await provRes.json();
+            setProveedores(dataProv);
+          }
+        } catch (provError) {
+          console.error("Error al cargar proveedores:", provError);
+        }
+
+        try {
           const configRes = await fetch("http://localhost:5000/api/Configuracions/ListarConfiguracionActivos");
           if (configRes.ok) {
             const dataConfig = await configRes.json();
@@ -193,7 +217,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     setFormData((prev: any) => {
       const newState = {
         ...prev,
-        [name]: ["precio", "stock", "concentracion", "casilla", "idpresentacion", "idlaboratorio", "idtipo", "precio_compra"].includes(name)
+        [name]: ["precio", "stock", "concentracion", "casilla", "idpresentacion", "idlaboratorio", "idtipo", "idproveedor", "precio_compra"].includes(name)
           ? sanitizedValue // Guardamos como texto para permitir el "." mientras se escribe
           : value,
       };
@@ -240,15 +264,16 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
   const handleAgregar = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Solo validamos los selectores que pediste obligatorios
+    // Solo validamos los selectores obligatorios
     if (
       !formData.idtipo ||
       !formData.idlaboratorio ||
-      !formData.idpresentacion
+      !formData.idpresentacion ||
+      !formData.idproveedor
     ) {
       showModal(
         "error",
-        "Por favor seleccione el Tipo, Laboratorio y Presentación",
+        "Por favor seleccione el Tipo, Laboratorio, Presentación y Proveedor",
       );
       return;
     }
@@ -266,6 +291,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       concentracion: formData.concentracion || 0,
       casilla: formData.casilla || 0,
       idpresentacion: formData.idpresentacion,
+      idproveedor: formData.idproveedor,
       precio_compra: formData.precio_compra || 0,
       lote: formData.lote || "S/D",
       nombre_generico: formData.nombre_generico || "S/D",
@@ -273,7 +299,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}&nombre_generico=${finalData.nombre_generico}`,
+        `http://localhost:5000/api/Productos/Crear?codigo=${finalData.codigo}&nombre=${finalData.nombre}&descripcion=${finalData.descripcion}&precio=${finalData.precio}&stock=${finalData.stock}&vencimiento=${finalData.vencimiento}&idtipo=${finalData.idtipo}&idlaboratorio=${finalData.idlaboratorio}&concentracion=${finalData.concentracion}&casilla=${finalData.casilla}&idpresentacion=${finalData.idpresentacion}&idproveedor=${finalData.idproveedor}&precio_compra=${finalData.precio_compra}&lote=${finalData.lote}&nombre_generico=${finalData.nombre_generico}`,
         {
           method: "POST",
           headers: {
@@ -339,6 +365,9 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       );
       params.append("idlaboratorio", formData.idlaboratorio?.toString() || "0");
       params.append("idtipo", formData.idtipo?.toString() || "0");
+      if (formData.idproveedor) {
+        params.append("idproveedor", formData.idproveedor.toString());
+      }
       params.append("precio_compra", finalPrecioCompra);
       params.append("lote", finalLote);
       params.append("nombre_generico", finalnombre_generico);
@@ -496,12 +525,47 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     }
   };
 
+  const handleCreateQuickProv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickProvName.trim() || !quickProvCelular.trim()) {
+      showModal("error", "Por favor complete el nombre y celular del proveedor");
+      return;
+    }
+    setIsSubmittingQuick(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/Proveedores/Crear?nombre=${encodeURIComponent(quickProvName.trim())}&celular=${encodeURIComponent(quickProvCelular.trim())}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (response.ok) {
+        const newProv: Proveedor = await response.json();
+        setProveedores((prev) => [...prev, newProv]);
+        setFormData((prev: any) => ({ ...prev, idproveedor: newProv.id }));
+        setQuickProvName("");
+        setQuickProvCelular("");
+        setQuickModal(null);
+        showModal("success", `Proveedor "${newProv.nombre}" creado y seleccionado correctamente`);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Error al crear el proveedor");
+      }
+    } catch (error) {
+      showModal("error", error instanceof Error ? error.message : "Error al crear el proveedor");
+    } finally {
+      setIsSubmittingQuick(false);
+    }
+  };
+
   // --- Limpiar todos los filtros ---
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterTipo("");
     setFilterLaboratorio("");
     setFilterPresentacion("");
+    setFilterProveedor("");
     setFilterAlfabeto("");
     setFilterVencidos(false);
     setFilterProximosVencer(false);
@@ -558,6 +622,10 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       filterPresentacion === "" ||
       product.idpresentacion === Number(filterPresentacion);
 
+    const coincideProveedor =
+      filterProveedor === "" ||
+      product.idproveedor === Number(filterProveedor);
+
     const coincideAlfabeto =
       filterAlfabeto === "" ||
       product.nombre.toUpperCase().startsWith(filterAlfabeto.toUpperCase());
@@ -575,6 +643,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       coincideTipo &&
       coincideLaboratorio &&
       coincidePresentacion &&
+      coincideProveedor &&
       coincideAlfabeto &&
       coincideVencido &&
       coincideProximoVencer
@@ -607,6 +676,8 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         presentacion.find((pre) => pre.id === product.idpresentacion)
           ?.nombreCorto || "";
       const fullPres = `${presNombre} ${product.concentracion || ""} ${presCorto}`.trim();
+      const provNombre =
+        proveedores.find((pr) => pr.id === product.idproveedor)?.nombre || "N/A";
       const invertido =
         (Number(product.precio_compra) || 0) * (Number(product.stock) || 0);
 
@@ -626,6 +697,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         Tipo: tipoNombre,
         Presentación: fullPres || presNombre,
         Laboratorio: labNombre,
+        Proveedor: provNombre,
         "Precio Compra": Number(product.precio_compra || 0),
         "Precio Venta": Number(product.precio || 0),
         Stock: product.stock,
@@ -646,8 +718,8 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       worksheet,
       [
         [],
-        ["", "", "", "", "", "", "", "", "", "", "", "", "", "Total Productos:", filteredProductos.length],
-        ["", "", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]
+        ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "Total Productos:", filteredProductos.length],
+        ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "Monto Total Invertido:", montoInvertido.toFixed(2)]
       ],
       { origin: -1 },
     );
@@ -701,6 +773,10 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       if (filterPresentacion) {
         const p = presentacion.find((pre) => pre.id === Number(filterPresentacion))?.nombre;
         if (p) filtrosAplicados.push(`Pres: ${p}`);
+      }
+      if (filterProveedor) {
+        const pr = proveedores.find((p) => p.id === Number(filterProveedor))?.nombre;
+        if (pr) filtrosAplicados.push(`Prov: ${pr}`);
       }
       if (filterAlfabeto) filtrosAplicados.push(`Letra: ${filterAlfabeto}`);
       if (searchTerm) filtrosAplicados.push(`Búsqueda: "${searchTerm}"`);
@@ -770,6 +846,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       "Tipo",
       "Presentación",
       "Laboratorio",
+      "Proveedor",
       "P. Compra",
       "P. Venta",
       "Stock",
@@ -782,6 +859,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
     const tableRows = filteredProductos.map((p) => {
       const tipoNombre = tipo.find((tp) => tp.id === p.idtipo)?.nombre || "N/A";
       const labNombre = laboratorio.find((lab) => lab.id === p.idlaboratorio)?.laboratorioNombre || "N/A";
+      const provNombre = proveedores.find((pr) => pr.id === p.idproveedor)?.nombre || "N/A";
       const presNombre = presentacion.find((pre) => pre.id === p.idpresentacion)?.nombre || "";
       const presCorto = presentacion.find((pre) => pre.id === p.idpresentacion)?.nombreCorto || "";
       const fullPres = `${presNombre} ${p.concentracion || ""} ${presCorto}`.trim();
@@ -795,6 +873,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
         tipoNombre,
         fullPres || "N/A",
         labNombre,
+        provNombre,
         `${Number(p.precio_compra || 0).toFixed(2)} Bs`,
         `${Number(p.precio || 0).toFixed(2)} Bs`,
         p.stock.toString(),
@@ -933,6 +1012,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                 {quickModal === "tipo" && "Agregar Nuevo Tipo"}
                 {quickModal === "laboratorio" && "Agregar Nuevo Laboratorio"}
                 {quickModal === "presentacion" && "Agregar Nueva Presentación"}
+                {quickModal === "proveedor" && "Agregar Nuevo Proveedor"}
               </h3>
               <button
                 type="button"
@@ -1051,6 +1131,54 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                     value={quickPresCorto}
                     onChange={(e) => setQuickPresCorto(e.target.value)}
                     placeholder="Ej. cja, fco, bls..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickModal(null)}
+                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingQuick}
+                    className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium disabled:opacity-50"
+                  >
+                    {isSubmittingQuick ? "Guardando..." : "Guardar y Seleccionar"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {quickModal === "proveedor" && (
+              <form onSubmit={handleCreateQuickProv} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del Proveedor <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickProvName}
+                    onChange={(e) => setQuickProvName(e.target.value)}
+                    placeholder="Ej. Droguería Inti, Distribuidora..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Celular / Teléfono <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={quickProvCelular}
+                    onChange={(e) => setQuickProvCelular(e.target.value)}
+                    placeholder="Ej. 77889900"
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     required
                   />
@@ -1267,6 +1395,38 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
       </select>
     </div>
 
+    {/* Proveedor - OBLIGATORIO CON CREACIÓN RÁPIDA */}
+    <div className="form-group space-y-2">
+      <div className="w-full flex items-center justify-between px-1">
+        <label className="text-sm font-medium text-black">
+          Proveedor <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setQuickModal("proveedor")}
+          className="text-xs text-white px-2 py-0.5 rounded flex items-center gap-1 shadow-sm transition hover:opacity-90 cursor-pointer"
+          style={{ background: "#2563eb", color: "#ffffff" }}
+          title="Agregar nuevo proveedor"
+        >
+          <Plus size={12} /> Nuevo
+        </button>
+      </div>
+      <select
+        name="idproveedor"
+        value={formData.idproveedor || ""}
+        onChange={handleInputChange}
+        className="block w-full px-3 py-2 mt-1 border rounded shadow-sm focus:ring-blue focus:border-blue"
+        required
+      >
+        <option value="">Seleccione Proveedor</option>
+        {proveedores.map((pr) => (
+          <option key={pr.id} value={pr.id}>
+            {pr.nombre} {pr.celular ? `(${pr.celular})` : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+
     {/* Precio Compra - CORREGIDO PARA DECIMALES */}
     <div className="form-group space-y-2">
       <label className="block text-sm font-medium text-black text-center">
@@ -1466,6 +1626,27 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   </select>
                 </div>
 
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
+                    Proveedor
+                  </label>
+                  <select
+                    value={filterProveedor}
+                    onChange={(e) => {
+                      setFilterProveedor(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm focus:ring-blue focus:border-blue"
+                  >
+                    <option value="">Todos</option>
+                    {proveedores.map((pr) => (
+                      <option key={pr.id} value={pr.id}>
+                        {pr.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 
 
                 <button
@@ -1610,85 +1791,91 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                     <tr>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[6%]"
+                        className="px-2 py-2 text-left w-[5%]"
                       >
                         Cód.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[6%]"
+                        className="px-2 py-2 text-left w-[5%]"
                       >
                         Lote
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[11%]"
+                        className="px-2 py-2 text-left w-[10%]"
                       >
                         Nombre
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[11%]"
+                        className="px-2 py-2 text-left w-[10%]"
                       >
                         N.Generico
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[12%]"
+                        className="px-2 py-2 text-left w-[10%]"
                       >
                         Descripción
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[7%]"
+                        className="px-2 py-2 text-left w-[6%]"
                       >
                         Tipo
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[9%]"
+                        className="px-2 py-2 text-left w-[8%]"
                       >
                         Present.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-left w-[9%]"
+                        className="px-2 py-2 text-left w-[8%]"
                       >
                         Lab.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[6%]"
+                        className="px-2 py-2 text-left w-[8%]"
                       >
-                        P. Compra
-                      </th>
-                      <th
-                        style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[6%]"
-                      >
-                        Precio
+                        Proveedor
                       </th>
                       <th
                         style={{ background: "blue" }}
                         className="px-2 py-2 text-center w-[5%]"
                       >
-                        Stock
+                        P. Compra
+                      </th>
+                      <th
+                        style={{ background: "blue" }}
+                        className="px-2 py-2 text-center w-[5%]"
+                      >
+                        Precio
                       </th>
                       <th
                         style={{ background: "blue" }}
                         className="px-2 py-2 text-center w-[4%]"
                       >
+                        Stock
+                      </th>
+                      <th
+                        style={{ background: "blue" }}
+                        className="px-2 py-2 text-center w-[3%]"
+                      >
                         Cas.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[7%]"
+                        className="px-2 py-2 text-center w-[6%]"
                       >
                         Venc.
                       </th>
                       <th
                         style={{ background: "blue" }}
-                        className="px-2 py-2 text-center w-[9%]"
+                        className="px-2 py-2 text-center w-[7%]"
                       >
                         Fecha Reg.
                       </th>
@@ -1703,7 +1890,7 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                   <tbody className="divide-y divide-gray-200">
                     {filteredProductos.length === 0 ? (
                       <tr>
-                        <td colSpan={15} className="text-center py-4">
+                        <td colSpan={16} className="text-center py-4">
                           No hay resultados
                         </td>
                       </tr>
@@ -1724,6 +1911,10 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                           presentacion.find(
                             (pre) => pre.id === product.idpresentacion,
                           )?.nombreCorto || "";
+                        const provNombre =
+                          proveedores.find(
+                            (pr) => pr.id === product.idproveedor,
+                          )?.nombre || "S/P";
                         const fullPres = `${presNombre} ${product.concentracion || ""} ${presCorto}`;
 
                         // Saber si este producto en particular está vencido o próximo a vencer
@@ -1810,6 +2001,16 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectEle
                               </span>
                               <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
                                 {labNombre}
+                              </div>
+                            </td>
+
+                            {/* Celda Proveedor con Tooltip */}
+                            <td className="px-2 py-1.5 border-r relative group">
+                              <span className="truncate block cursor-help">
+                                {provNombre}
+                              </span>
+                              <div className="absolute invisible group-hover:visible z-50 bottom-full left-0 mb-1 w-48 p-2 bg-black text-white rounded shadow-xl text-[10px] leading-tight">
+                                {provNombre}
                               </div>
                             </td>
 

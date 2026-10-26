@@ -5,7 +5,7 @@ import { IoPeopleSharp } from "react-icons/io5";
 import { IoMdPerson } from "react-icons/io";
 import { FcDataConfiguration } from "react-icons/fc";
 import { BsMenuButtonWide } from "react-icons/bs";
-import { FaProductHunt, FaFlask, FaTags, FaCartPlus } from "react-icons/fa6";
+import { FaProductHunt, FaFlask, FaTags, FaCartPlus, FaTruck } from "react-icons/fa6";
 import { MdOutlinePointOfSale } from "react-icons/md";
 import icono from '../img/logo1.png';
 
@@ -99,6 +99,15 @@ function NavBarRoot() {
               <Link to="/laboratorio" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
                 <FaFlask className="text-lg" /> 
                 <span className="text-[15px] font-medium">Laboratorio</span>
+              </Link>
+            </li>
+          )}
+
+          {(hasPermission(10) || hasPermission(4)) && (
+            <li>
+              <Link to="/proveedores" className="flex items-center gap-3 transition-all duration-200 hover:text-[#4ade80]">
+                <FaTruck className="text-lg" /> 
+                <span className="text-[15px] font-medium">Proveedores</span>
               </Link>
             </li>
           )}

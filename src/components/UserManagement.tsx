@@ -111,6 +111,7 @@ const UserManagement: React.FC = () => {
     const permissionsMap: { [key: string]: number } = {
       'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4,
       'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9,
+      'Proveedores': 10,
     };
     const permissionNumber = permissionsMap[permission];
     setSelectedPermissions(prev => prev.includes(permissionNumber) ? prev.filter(p => p !== permissionNumber) : [...prev, permissionNumber]);
@@ -368,11 +369,11 @@ const UserManagement: React.FC = () => {
             <div className="bg-white rounded-lg p-6 w-full max-w-md border-t-8 border-blue">
               <h3 className="text-xl font-bold mb-4 border-b pb-2 text-blue">EDITAR PERMISOS</h3>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto mb-6 pr-2">
-                {Object.keys({ 'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4, 'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9 }).map(name => (
+                {Object.keys({ 'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4, 'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9, 'Proveedores': 10 }).map(name => (
                   <label key={name} className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer">
                     <input 
                       type="checkbox" 
-                      checked={selectedPermissions.includes(({ 'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4, 'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9 } as any)[name])} 
+                      checked={selectedPermissions.includes(({ 'Configuración': 1, 'Usuarios': 2, 'Clientes': 3, 'Productos': 4, 'Ventas': 5, 'Historial de Ventas': 6, 'Tipos': 7, 'Presentación': 8, 'Laboratorios': 9, 'Proveedores': 10 } as any)[name])} 
                       onChange={() => handlePermissionsChange(name)} 
                       className="w-5 h-5 accent-blue" 
                     />
