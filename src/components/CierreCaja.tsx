@@ -620,11 +620,11 @@ const CierreCaja: React.FC = () => {
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                  <thead>
                     <tr>
-                      <th className="py-2.5 px-3 text-left">Método de Pago</th>
-                      <th className="py-2.5 px-3 text-center">Cantidad de Ventas</th>
-                      <th className="py-2.5 px-3 text-right">Total Recaudado</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-left">Método de Pago</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-center">Cantidad de Ventas</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-right">Total Recaudado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -667,12 +667,12 @@ const CierreCaja: React.FC = () => {
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                  <thead>
                     <tr>
-                      <th className="py-2.5 px-3 text-left">Seguro</th>
-                      <th className="py-2.5 px-3 text-center">Ventas</th>
-                      <th className="py-2.5 px-3 text-right">Descuento</th>
-                      <th className="py-2.5 px-3 text-right">Total Neto</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-left">Seguro</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-center">Ventas</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-right">Descuento</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-2.5 px-3 text-right">Total Neto</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">

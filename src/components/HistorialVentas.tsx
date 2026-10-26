@@ -292,12 +292,12 @@ function HistorialVentas() {
           />
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border rounded shadow">
-              <thead className="bg-blue text-white uppercase text-sm">
+              <thead>
                 <tr>
-                  <th style={{ background: 'blue' }} className="px-6 py-3 text-left">Cliente</th>
-                  <th style={{ background: 'blue' }} className="px-6 py-3 text-left">Total</th>
-                  <th style={{ background: 'blue' }} className="px-6 py-3 text-left">Fecha</th>
-                  <th style={{ background: 'blue' }} className="px-6 py-3 text-left">Acciones</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Cliente</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Total</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Fecha</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -383,12 +383,12 @@ function HistorialVentas() {
               {/* Tabla de productos */}
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border rounded shadow">
-                  <thead className="bg-blue text-white uppercase text-sm">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-black">Producto</th>
-                      <th className="px-6 py-3 text-left text-black">Cantidad</th>
-                      <th className="px-6 py-3 text-left text-black">Precio</th>
-                      <th className="px-6 py-3 text-left text-black">Total</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Producto</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Cantidad</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Precio</th>
+                      <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Total</th>
                     </tr>
                   </thead>
                   <tbody>

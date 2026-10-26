@@ -1215,13 +1215,13 @@ const DashboardHome: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Nombre</th>
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Laboratorio</th>
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Presentación</th>
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Fecha de Vencimiento</th>
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Días Restantes</th>
-                          <th className="p-3 text-left text-sm font-medium bg-blue text-gray-700">Estado</th>
+                        <tr>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Nombre</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Laboratorio</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Presentación</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Fecha de Vencimiento</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Días Restantes</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left text-sm font-semibold">Estado</th>
                         </tr>
                       </thead>
                       <tbody>
