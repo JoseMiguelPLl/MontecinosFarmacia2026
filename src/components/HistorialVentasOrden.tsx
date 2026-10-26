@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Download, FileText } from "lucide-react";
+import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import Modal from "./Modal";
+import Pagination from "./Pagination";
 import logo  from "../img/logo1.png"
 declare module "jspdf" {
   interface jsPDF {
@@ -52,6 +54,8 @@ function HistorialVentasOrden() {
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetch(
@@ -254,100 +258,196 @@ const generarPDF = () => {
     {align:"right"}
   );
 
-  doc.save(`ventas_${fechaIni}_${fechaFin}.pdf`);
+  doc.save(`ventas_${fechaIni || "todas"}_${fechaFin || "todas"}.pdf`);
 
 };
+
+  const generarExcel = () => {
+    try {
+      const rowsExcel = ventas.map((v, idx) => {
+        const productosResumen = (v.detalles || [])
+          .map((d) => `${d.producto} (x${d.cantidad})`)
+          .join(", ");
+        return {
+          "Nº": idx + 1,
+          "Nº Orden": v.ventaId,
+          "Fecha": v.fechaVenta,
+          "Cliente": v.cliente,
+          "Seguro": v.seguro || "Particular",
+          "Tipo de Pago": v.tipoPago,
+          "Subtotal (Bs)": Number(v.subTotal || (v.totalVenta + (v.descuentoTotal || 0))).toFixed(2),
+          "Descuento Seguro (Bs)": Number(v.descuentoTotal || 0).toFixed(2),
+          "Total Venta (Bs)": Number(v.totalVenta).toFixed(2),
+          "Productos": productosResumen,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rowsExcel);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "VentasPorOrden");
+
+      XLSX.writeFile(wb, `reporte_ventas_orden_${fechaIni || "todas"}_${fechaFin || "todas"}.xlsx`);
+    } catch (err) {
+      console.error("Error al exportar Excel por orden:", err);
+    }
+  };
 
   const handleViewDetails = (venta: Venta) => {
     setSelectedVenta(venta);
     setIsModalOpen(true);
   };
 
+  const totalPages = Math.ceil(ventas.length / itemsPerPage) || 1;
+  const paginatedVentas = ventas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div>
-      <div className="flex gap-4 mb-4">
-        <input
-          type="date"
-          value={fechaIni}
-          onChange={(e) => setFechaIni(e.target.value)}
-          className="border p-2 rounded"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Desde</label>
+            <input
+              type="date"
+              value={fechaIni}
+              onChange={(e) => {
+                setFechaIni(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border p-2 rounded text-sm bg-white"
+            />
+          </div>
 
-        <input
-          type="date"
-          value={fechaFin}
-          onChange={(e) => setFechaFin(e.target.value)}
-          className="border p-2 rounded"
-        />
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Hasta</label>
+            <input
+              type="date"
+              value={fechaFin}
+              onChange={(e) => {
+                setFechaFin(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border p-2 rounded text-sm bg-white"
+            />
+          </div>
 
-        <select
-          value={tipoPago}
-          onChange={(e) => setTipoPago(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Todos</option>
-          <option value="QR">QR</option>
-          <option value="Efectivo">Efectivo</option>
-        </select>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de Pago</label>
+            <select
+              value={tipoPago}
+              onChange={(e) => {
+                setTipoPago(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border p-2 rounded text-sm bg-white"
+            >
+              <option value="">Todos</option>
+              <option value="QR">QR</option>
+              <option value="Efectivo">Efectivo</option>
+            </select>
+          </div>
+        </div>
 
-        <button
-          onClick={generarPDF}
-          className="bg-blue text-white px-4 py-2 rounded"
-        >
-          Exportar PDF
-        </button>
+        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+          <button
+            onClick={generarExcel}
+            disabled={ventas.length === 0}
+            style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow hover:opacity-95 transition disabled:opacity-50 cursor-pointer"
+          >
+            <Download size={16} />
+            <span>Excel</span>
+          </button>
+
+          <button
+            onClick={generarPDF}
+            disabled={ventas.length === 0}
+            style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow hover:opacity-95 transition disabled:opacity-50 cursor-pointer"
+          >
+            <FileText size={16} />
+            <span>PDF</span>
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead className="bg-blue text-white">
+      <div className="overflow-x-auto bg-white rounded-lg border shadow-sm">
+        <table className="min-w-full bg-white border-collapse">
+          <thead>
             <tr>
-              <th className="p-3 bg-blue">Orden</th>
-              <th className="p-3 bg-blue">Cliente</th>
-              <th className="p-3 bg-blue">Seguro</th>
-              <th className="p-3 bg-blue">Fecha</th>
-              <th className="p-3 bg-blue">Tipo Pago</th>
-              <th className="p-3 bg-blue">Descuento</th>
-              <th className="p-3 bg-blue">Total</th>
-              <th className="p-3 bg-blue">Detalle</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left">Orden</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left">Cliente</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left">Seguro</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left">Fecha</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-left">Tipo Pago</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-right">Descuento</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-right">Total</th>
+              <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 text-center">Detalle</th>
             </tr>
           </thead>
 
           <tbody>
-            {ventas.map((v) => (
-              <tr key={v.ventaId} className="border-b hover:bg-gray-50">
-                <td className="p-3 font-semibold">{v.ventaId}</td>
-                <td className="p-3 font-medium">{v.cliente}</td>
-                <td className="p-3">
-                  {v.seguro ? (
-                    <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold border border-blue-200">
-                      {v.seguro}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-xs italic">Particular</span>
-                  )}
-                </td>
-                <td className="p-3">{v.fechaVenta}</td>
-                <td className="p-3">{v.tipoPago}</td>
-                <td className="p-3 text-green-600 font-semibold">
-                  {v.descuentoTotal && v.descuentoTotal > 0
-                    ? `-${Number(v.descuentoTotal).toFixed(2)} Bs`
-                    : "0.00 Bs"}
-                </td>
-                <td className="p-3 font-bold text-blue-700">{v.totalVenta.toFixed(2)} Bs</td>
-
-                <td className="p-3">
-                  <button
-                    onClick={() => handleViewDetails(v)}
-                    className="text-blue-600 font-medium hover:underline"
-                  >
-                    Ver
-                  </button>
+            {paginatedVentas.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-gray-400">
+                  No se encontraron ventas para el período seleccionado.
                 </td>
               </tr>
-            ))}
+            ) : (
+              paginatedVentas.map((v) => (
+                <tr key={v.ventaId} className="border-b hover:bg-gray-50">
+                  <td className="p-3 font-semibold text-blue-700">#{v.ventaId}</td>
+                  <td className="p-3 font-medium text-gray-800">{v.cliente}</td>
+                  <td className="p-3">
+                    {v.seguro ? (
+                      <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold border border-blue-200">
+                        {v.seguro}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">Particular</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-gray-600">{v.fechaVenta}</td>
+                  <td className="p-3">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                        v.tipoPago === "Efectivo"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {v.tipoPago}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right text-green-600 font-semibold">
+                    {v.descuentoTotal && v.descuentoTotal > 0
+                      ? `-${Number(v.descuentoTotal).toFixed(2)} Bs`
+                      : "0.00 Bs"}
+                  </td>
+                  <td className="p-3 text-right font-bold text-blue-700">{v.totalVenta.toFixed(2)} Bs</td>
+
+                  <td className="p-3 text-center">
+                    <button
+                      onClick={() => handleViewDetails(v)}
+                      className="text-blue-600 font-medium hover:underline cursor-pointer"
+                    >
+                      Ver Detalle
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+
+        {/* Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => setCurrentPage(page)}
+          totalItems={ventas.length}
+          itemsPerPage={itemsPerPage}
+          itemName="ventas"
+        />
       </div>
 
       <div className="mt-4 font-bold text-lg text-gray-800">
@@ -381,14 +481,14 @@ const generarPDF = () => {
             </div>
 
             <table className="min-w-full mt-2 border text-sm">
-              <thead className="bg-blue text-white">
+              <thead>
                 <tr>
-                  <th className="p-2 bg-blue text-left">Producto / Lote</th>
-                  <th className="p-2 bg-blue text-center">Código</th>
-                  <th className="p-2 bg-blue text-center">Cantidad</th>
-                  <th className="p-2 bg-blue text-center">Precio U.</th>
-                  <th className="p-2 bg-blue text-center">Descuento</th>
-                  <th className="p-2 bg-blue text-center">Total</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-left">Producto / Lote</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Código</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Cantidad</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Precio U.</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Descuento</th>
+                  <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Total</th>
                 </tr>
               </thead>
 

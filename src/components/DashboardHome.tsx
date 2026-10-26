@@ -256,15 +256,15 @@ const DashboardHome: React.FC = () => {
     fetchIngresosMensuales(year);
   };
 
-  const stockMinimoData = productosConMenorStock.map((producto) => ({
+  const stockMinimoData = productosConMenorStock.slice(0, 8).map((producto) => ({
     name: `${producto.nombre}`,
     value: producto.stock,
     presentacion: producto.presentacionNombre,
     laboratorio: producto.laboratorioNombre
   }));
 
-  const masVendidosChartData = masVendidosData.map((producto) => ({
-    name: `${producto.nombre} `,
+  const masVendidosChartData = masVendidosData.slice(0, 8).map((producto) => ({
+    name: `${producto.nombre}`,
     value: producto.totalVendido,
     presentacion: producto.presentacionNombre,
     laboratorio: producto.laboratorioNombre
@@ -1359,7 +1359,7 @@ const DashboardHome: React.FC = () => {
                             outerRadius={120}
                             paddingAngle={2}
                             dataKey="value"
-                            label={({ name, value }) => `${name} (${value})`}
+                            label={({ name, value }) => `${name.length > 15 ? name.substring(0, 15) + '…' : name} (${value})`}
                             labelLine={true}
                           >
                             {stockMinimoData.map((entry, index) => (
@@ -1398,15 +1398,15 @@ const DashboardHome: React.FC = () => {
                   <div className="max-h-[380px] overflow-y-auto rounded-lg border border-gray-200">
                     <table className="w-full border-collapse text-xs">
                       <thead className="sticky top-0 z-10">
-                        <tr className="bg-gray-100 text-left">
-                          <th className="p-3 font-bold bg-blue text-white w-12 text-center">#</th>
-                          <th className="p-3 font-bold bg-blue text-white">Producto</th>
-                          <th className="p-3 font-bold bg-blue text-white">Laboratorio</th>
-                          <th className="p-3 font-bold bg-blue text-white">Presentación</th>
-                          <th className="p-3 font-bold bg-blue text-white text-center">Stock Actual</th>
-                          <th className="p-3 font-bold bg-blue text-white text-center">P. Venta</th>
-                          <th className="p-3 font-bold bg-blue text-white text-center">Vencimiento</th>
-                          <th className="p-3 font-bold bg-blue text-white text-center">Fecha Reg.</th>
+                        <tr className="text-left">
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold w-12 text-center">#</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Producto</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Laboratorio</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Presentación</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold text-center">Stock Actual</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold text-center">P. Venta</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold text-center">Vencimiento</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold text-center">Fecha Reg.</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -1526,7 +1526,7 @@ const DashboardHome: React.FC = () => {
                             outerRadius={120}
                             paddingAngle={2}
                             dataKey="value"
-                            label={({ name, value }) => `${name} (${value} unid.)`}
+                            label={({ name, value }) => `${name.length > 15 ? name.substring(0, 15) + '…' : name} (${value} u.)`}
                             labelLine={true}
                           >
                             {masVendidosChartData.map((entry, index) => (
@@ -1565,12 +1565,12 @@ const DashboardHome: React.FC = () => {
                   <div className="max-h-[380px] overflow-y-auto rounded-lg border border-gray-200">
                     <table className="w-full border-collapse text-xs">
                       <thead className="sticky top-0 z-10">
-                        <tr className="bg-gray-100 text-left">
-                          <th className="p-3 font-bold bg-blue text-white w-16 text-center">Top</th>
-                          <th className="p-3 font-bold bg-blue text-white">Producto</th>
-                          <th className="p-3 font-bold bg-blue text-white">Laboratorio</th>
-                          <th className="p-3 font-bold bg-blue text-white">Presentación</th>
-                          <th className="p-3 font-bold bg-blue text-white text-center">Unidades Vendidas</th>
+                        <tr className="text-left">
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold w-16 text-center">Top</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Producto</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Laboratorio</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold">Presentación</th>
+                          <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-3 font-bold text-center">Unidades Vendidas</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">

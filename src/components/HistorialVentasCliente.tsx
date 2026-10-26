@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import Modal from "./Modal";
-import { FaRegEye  } from "react-icons/fa";
+import Pagination from "./Pagination";
+import logo from "../img/logo1.png";
+import { FaRegEye } from "react-icons/fa";
 
 import {
   Trash2,
@@ -19,6 +22,9 @@ import {
   ChevronRight,
   RefreshCcw,
   Clock,
+  Download,
+  FileText,
+  Filter,
 } from "lucide-react";
 declare module "jspdf" {
   interface jsPDF {
@@ -52,7 +58,15 @@ interface Client {
   ci: string;
   telefono: string;
   direccion: string;
+  idseguro?: number | null;
   eliminado?: boolean;
+}
+
+interface Seguro {
+  id: number;
+  nombre: string;
+  porcentaje?: number;
+  estado?: string;
 }
 
 interface Producto {
@@ -80,6 +94,8 @@ function HistorialVentasCliente() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [search, setSearch] = useState("");
   const [usuario, setUsuario] = useState<Client[]>([]);
+  const [seguros, setSeguros] = useState<Seguro[]>([]);
+  const [filterSeguro, setFilterSeguro] = useState<string>("");
   const [detalleventa, setDetalleVenta] = useState<Detalle_Ventas[]>([]);
   const [selectedVentaId, setSelectedVentaId] = useState<number | null>(null);
   const [productos, setProducto] = useState<Producto[]>([]);
@@ -87,11 +103,24 @@ function HistorialVentasCliente() {
   const [fechaIni, setFechaIni] = useState<string>("");
   const [fechaFin, setFechaFin] = useState<string>("");
   const [configuracion, setConfiguracion] = useState<Configuracion[]>([]);
-    useEffect(() => {
-    fetch('http://localhost:5000/api/Configuracions/ListarConfiguracionActivos')
-      .then(response => response.json())
-      .then(data => setConfiguracion(data))
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/Configuracions/ListarConfiguracionActivos")
+      .then((response) => response.json())
+      .then((data) => setConfiguracion(data))
+      .catch(() => {});
+
+    fetch("http://localhost:5000/api/Seguros/ListarSegurosActivos")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setSeguros(data))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterSeguro, fechaIni, fechaFin]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -270,13 +299,205 @@ const generarPDF = () => {
   const filteredVentas = ventas.filter((venta) => {
     const cliente = usuario.find((user) => user.id === venta.idcliente);
     const clienteNombre = cliente
-      ? `${cliente.nombre} ${cliente.ci}`.toLowerCase()
+      ? `${cliente.nombre} ${cliente.ci} ${cliente.telefono || ""}`.toLowerCase()
       : "";
-    return (
+    const matchSearch =
+      !search ||
       clienteNombre.includes(search.toLowerCase()) ||
-      venta.fecha.toLowerCase().includes(search.toLowerCase())
-    );
+      (venta.fecha || "").toLowerCase().includes(search.toLowerCase()) ||
+      String(venta.id).includes(search);
+
+    if (!matchSearch) return false;
+
+    if (!filterSeguro) return true;
+    if (filterSeguro === "sin_seguro") {
+      return !cliente?.idseguro || cliente?.idseguro === 0;
+    }
+    return String(cliente?.idseguro) === String(filterSeguro);
   });
+
+  const totalGeneral = filteredVentas.reduce(
+    (sum, v) => sum + (Number(v.total) || 0),
+    0
+  );
+  const totalPages = Math.ceil(filteredVentas.length / itemsPerPage) || 1;
+  const paginatedVentas = filteredVentas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const generarExcelClientes = () => {
+    try {
+      const rowsExcel = filteredVentas.map((v, idx) => {
+        const cliente = usuario.find((u) => u.id === v.idcliente);
+        const seguroObj = cliente?.idseguro
+          ? seguros.find((s) => s.id === cliente.idseguro)
+          : null;
+        const seguroNombre = seguroObj
+          ? `${seguroObj.nombre}${seguroObj.porcentaje !== undefined ? ` (${seguroObj.porcentaje}%)` : ""}`
+          : "Particular";
+
+        return {
+          "Nº": idx + 1,
+          "Nº Venta": v.id,
+          "Cliente": cliente ? cliente.nombre : "Desconocido",
+          "CI/NIT": cliente ? cliente.ci : "S/D",
+          "Teléfono": cliente ? cliente.telefono : "S/D",
+          "Seguro": seguroNombre,
+          "Fecha": v.fecha,
+          "Total Venta (Bs)": Number(v.total).toFixed(2),
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rowsExcel);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "VentasPorCliente");
+      XLSX.writeFile(
+        wb,
+        `reporte_ventas_cliente_${fechaIni || "todas"}_${fechaFin || "todas"}.xlsx`
+      );
+    } catch (err) {
+      console.error("Error al exportar Excel por cliente:", err);
+    }
+  };
+
+  const generarPDFReporteClientes = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Barra superior
+      doc.setFillColor(30, 64, 175);
+      doc.rect(0, 0, pageWidth, 18, "F");
+
+      // Logo
+      try {
+        doc.addImage(logo, "PNG", 14, 4, 18, 10);
+      } catch (e) {}
+
+      // Título
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.text("REPORTE DE VENTAS POR CLIENTE", pageWidth / 2, 12, {
+        align: "center",
+      });
+
+      doc.setTextColor(0, 0, 0);
+
+      // Datos Farmacia
+      let y = 26;
+      configuracion.forEach((item) => {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(item.nombre, 14, y);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(
+          `Dirección: ${item.direccion} | Teléfono: ${item.telefono}`,
+          14,
+          y + 4
+        );
+        y += 7;
+      });
+
+      // Caja Información
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(pageWidth - 85, 22, 71, 20, 2, 2, "FD");
+
+      const seguroFiltradoTexto =
+        filterSeguro === ""
+          ? "Todos los clientes"
+          : filterSeguro === "sin_seguro"
+          ? "Solo Particulares"
+          : seguros.find((s) => String(s.id) === String(filterSeguro))?.nombre ||
+            `Seguro #${filterSeguro}`;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMACIÓN DE FILTROS", pageWidth - 50, 27, {
+        align: "center",
+      });
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Período: ${fechaIni || "Todos"} al ${fechaFin || "Todos"}`,
+        pageWidth - 82,
+        32
+      );
+      doc.text(`Filtro Seguro: ${seguroFiltradoTexto}`, pageWidth - 82, 36);
+      doc.text(`Total Registros: ${filteredVentas.length}`, pageWidth - 82, 40);
+
+      doc.setDrawColor(30, 64, 175);
+      doc.setLineWidth(0.4);
+      doc.line(14, 45, pageWidth - 14, 45);
+
+      const tableRows = filteredVentas.map((v, idx) => {
+        const cliente = usuario.find((u) => u.id === v.idcliente);
+        const seguroObj = cliente?.idseguro
+          ? seguros.find((s) => s.id === cliente.idseguro)
+          : null;
+        const seguroNombre = seguroObj
+          ? `${seguroObj.nombre}${seguroObj.porcentaje !== undefined ? ` (${seguroObj.porcentaje}%)` : ""}`
+          : "Particular";
+
+        return [
+          idx + 1,
+          `#${v.id}`,
+          cliente ? cliente.nombre : "Desconocido",
+          cliente ? cliente.ci : "S/D",
+          seguroNombre,
+          v.fecha,
+          `Bs ${Number(v.total).toFixed(2)}`,
+        ];
+      });
+
+      doc.autoTable({
+        head: [["#", "Nº Venta", "Cliente", "CI/NIT", "Seguro", "Fecha", "Total"]],
+        body: tableRows,
+        startY: 48,
+        theme: "striped",
+        styles: { fontSize: 8.5, halign: "center", cellPadding: 2.5 },
+        headStyles: {
+          fillColor: [30, 64, 175],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          2: { halign: "left" },
+          6: { halign: "right", fontStyle: "bold" },
+        },
+      });
+
+      let finalY = doc.lastAutoTable.finalY + 10;
+      if (finalY > pageHeight - 20) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(pageWidth - 85, finalY - 4, 71, 12, "F");
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        `TOTAL GENERAL: Bs ${totalGeneral.toFixed(2)}`,
+        pageWidth - 82,
+        finalY + 4
+      );
+
+      doc.save(
+        `reporte_ventas_cliente_${fechaIni || "todas"}_${fechaFin || "todas"}.pdf`
+      );
+    } catch (err) {
+      console.error("Error al exportar PDF por cliente:", err);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (window.confirm("¿Está seguro de eliminar esta venta?")) {
@@ -303,69 +524,223 @@ const generarPDF = () => {
   };
 
   return (
-    <div>
-      <div className="flex gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Buscar Cliente"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2 mb-4 border rounded"
-        />
+    <div className="space-y-4">
+      {/* Controles de Filtros y Exportación */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Desde
+              </label>
+              <input
+                type="date"
+                value={fechaIni}
+                onChange={(e) => setFechaIni(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Hasta
+              </label>
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Filtrar por Seguro
+              </label>
+              <select
+                value={filterSeguro}
+                onChange={(e) => setFilterSeguro(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[180px]"
+              >
+                <option value="">Todos los clientes / seguros</option>
+                <option value="sin_seguro">Particular (Sin Seguro)</option>
+                {seguros.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre} {s.porcentaje !== undefined ? `(${s.porcentaje}%)` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <button
+              onClick={generarExcelClientes}
+              disabled={filteredVentas.length === 0}
+              style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
+            >
+              <Download size={16} />
+              <span>Excel</span>
+            </button>
+
+            <button
+              onClick={generarPDFReporteClientes}
+              disabled={filteredVentas.length === 0}
+              style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
+            >
+              <FileText size={16} />
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Buscador de clientes */}
+        <div className="mt-3 relative">
+          <input
+            type="text"
+            placeholder="Buscar por cliente, CI/NIT o teléfono..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+          <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border rounded shadow">
-          <thead className="bg-blue text-white uppercase text-sm">
+      <div className="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
+        <table className="min-w-full bg-white border-collapse">
+          <thead>
             <tr>
-              <th className="px-6 py-3 text-left bg-blue">Cliente</th>
-              <th className="px-6 py-3 text-left bg-blue">CI/NIT</th>
-              <th className="px-6 py-3 text-left bg-blue">Fecha</th>
-              <th className="px-6 py-3 text-left bg-blue">Total</th>
-              <th className="px-6 py-3 text-left bg-blue">Acciones</th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-left"
+              >
+                Nº Venta
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-left"
+              >
+                Cliente
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-left"
+              >
+                CI/NIT
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-left"
+              >
+                Seguro
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-left"
+              >
+                Fecha
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-right"
+              >
+                Total
+              </th>
+              <th
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="p-3 text-center"
+              >
+                Acciones
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredVentas.map((venta) => {
-              const cliente = usuario.find(
-                (user) => user.id === venta.idcliente
-              );
-              return (
-                <tr key={venta.id} className="border-b hover:bg-gray-50">
-                  
-                  <td className="p-3">
-                    {cliente
-                      ? `${cliente.nombre} `
-                      : "Desconocido"}
-                  </td>
+            {paginatedVentas.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-8 text-center text-gray-400">
+                  No se encontraron ventas para los filtros seleccionados.
+                </td>
+              </tr>
+            ) : (
+              paginatedVentas.map((venta) => {
+                const cliente = usuario.find(
+                  (user) => user.id === venta.idcliente
+                );
+                const seguroObj = cliente?.idseguro
+                  ? seguros.find((s) => s.id === cliente.idseguro)
+                  : null;
+
+                return (
+                  <tr key={venta.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3 font-semibold text-blue-700">
+                      #{venta.id}
+                    </td>
+                    <td className="p-3 font-medium text-gray-800">
+                      {cliente ? cliente.nombre : "Desconocido"}
+                    </td>
+                    <td className="p-3 text-gray-600">
+                      {cliente ? cliente.ci : "Desconocido"}
+                    </td>
                     <td className="p-3">
-                    {cliente
-                      ? `${cliente.ci}`
-                      : "Desconocido"}
-                  </td>
-                  <td className="p-3">{venta.fecha}</td>
-                  <td className="p-3">{venta.total}</td>
-                  <td className="p-3 text-center">
-                    <button
-                      style={{ background: "blue" }}
-                      className="btn btn-warning"
-                      onClick={() => handlePdfClick(venta.id)}
-                    >
-                      <FaRegEye />
-                    </button>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => handleDelete(venta.id)}
-                    >
-                 <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+                      {cliente?.idseguro ? (
+                        <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-purple-200">
+                          {seguroObj
+                            ? `${seguroObj.nombre}${seguroObj.porcentaje !== undefined ? ` (${seguroObj.porcentaje}%)` : ""}`
+                            : `Seguro #${cliente.idseguro}`}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">
+                          Particular
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-gray-600">{venta.fecha}</td>
+                    <td className="p-3 text-right font-bold text-blue-700">
+                      Bs {Number(venta.total).toFixed(2)}
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="p-1.5 rounded-lg shadow hover:opacity-90 transition cursor-pointer"
+                          onClick={() => handlePdfClick(venta.id)}
+                          title="Ver detalle del recibo"
+                        >
+                          <FaRegEye size={15} />
+                        </button>
+                        <button
+                          className="p-1.5 rounded-lg bg-red-600 text-white shadow hover:bg-red-700 transition cursor-pointer"
+                          onClick={() => handleDelete(venta.id)}
+                          title="Eliminar venta"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
+
+        {/* Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => setCurrentPage(page)}
+          totalItems={filteredVentas.length}
+          itemsPerPage={itemsPerPage}
+          itemName="ventas"
+        />
+      </div>
+
+      <div className="mt-2 font-bold text-lg text-gray-800">
+        Total General Acumulado:{" "}
+        <span className="text-blue-600">Bs {totalGeneral.toFixed(2)}</span>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
@@ -434,16 +809,16 @@ const generarPDF = () => {
 
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white border rounded shadow">
-                <thead className="bg-blue text-white uppercase text-sm">
+                <thead>
                   <tr>
-                    <th className="px-6 py-3 text-left bg-blue text-white">
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">
                       Producto
                     </th>
-                    <th className="px-6 py-3 text-left bg-blue text-white">
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">
                       Cantidad
                     </th>
-                    <th className="px-6 py-3 text-left bg-blue text-white">Precio</th>
-                    <th className="px-6 py-3 text-left bg-blue text-white">Total</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Precio</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="px-6 py-3 text-left">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -485,9 +860,10 @@ const generarPDF = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={generarPDF}
-                className="bg-blue text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md"
+                style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                className="px-4 py-2 rounded-lg font-semibold transition-colors shadow-md cursor-pointer"
               >
-                Generar PDF
+                Imprimir Recibo PDF
               </motion.button>
             </div>
           </div>

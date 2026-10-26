@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
+import Pagination from "./Pagination";
 import "./ClientManagement.css";
 
 // Define interface for Client
@@ -490,12 +491,12 @@ const ClientManagement: React.FC = () => {
                 <table className="w-full border-collapse table-auto">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th style={{ background: 'blue' }} className="p-3 text-left text-white">Nombre</th>
-                      <th style={{ background: 'blue' }} className="p-3 text-left text-white">CI/NIT</th>
-                      <th style={{ background: 'blue' }} className="p-3 text-left text-white">Teléfono</th>
-                      <th style={{ background: 'blue' }} className="p-3 text-left text-white">Dirección</th>
-                      <th style={{ background: 'blue' }} className="p-3 text-left text-white">Seguro</th>
-                      <th style={{ background: 'blue' }} className="p-3 text-center text-white">Acciones</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-left">Nombre</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-left">CI/NIT</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-left">Teléfono</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-left">Dirección</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-left">Seguro</th>
+                      <th style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="p-3 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -555,25 +556,14 @@ const ClientManagement: React.FC = () => {
                 </table>
               </div>
 
-              <div className="pagination">
-                <div className="pagination-info">
-                  Mostrando registros del {filteredClients.length > 0 ? indexOfFirstItem + 1 : 0} al {Math.min(indexOfLastItem, filteredClients.length)} de un
-                  total de {filteredClients.length} registros
-                </div>
-                <div className="pagination">
-                  <div className="pagination-buttons">
-                    {Array.from({ length: totalPages }, (_, index) => (
-                      <button
-                        key={index + 1}
-                        onClick={() => handlePageChange(index + 1)}
-                        className={currentPage === index + 1 ? 'active' : ''}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalItems={filteredClients.length}
+                itemsPerPage={itemsPerPage}
+                itemName="clientes"
+              />
             </CardContent>
           </Card>
         </div>

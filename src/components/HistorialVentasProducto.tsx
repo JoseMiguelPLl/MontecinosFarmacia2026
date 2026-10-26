@@ -5,6 +5,7 @@ import { ShoppingCart, Calendar, Search, FileText, Download, RefreshCw, Eye } fr
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import Modal from "./Modal";
+import Pagination from "./Pagination";
 import logo from "../img/logo1.png";
 
 declare module "jspdf" {
@@ -98,6 +99,14 @@ const HistorialVentasProducto: React.FC = () => {
   // Modal para detalle de ventas del producto
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProducto, setSelectedProducto] = useState<ReporteProductoItem | null>(null);
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fechaIni, fechaFin, idSeguro, searchTerm]);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/Seguros/ListarSegurosActivos")
@@ -444,19 +453,21 @@ const HistorialVentasProducto: React.FC = () => {
             <button
               onClick={generarExcel}
               disabled={filteredReporte.length === 0}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50"
+              style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
             >
               <Download size={16} />
-              Excel
+              <span>Excel</span>
             </button>
 
             <button
               onClick={generarPDF}
               disabled={filteredReporte.length === 0}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50"
+              style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
             >
               <FileText size={16} />
-              PDF
+              <span>PDF</span>
             </button>
           </div>
         </div>
@@ -514,28 +525,36 @@ const HistorialVentasProducto: React.FC = () => {
           </div>
 
           {/* Tabla de Productos con Bloques Diferenciados */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-blue-600 text-white text-xs uppercase">
-                  <tr>
-                    <th className="py-3 px-3 text-left">Producto / Detalle</th>
-                    <th className="py-3 px-3 text-center">Lote / Vencimiento</th>
-                    <th className="py-3 px-3 text-left">Ventas Particulares (Sin Desc.)</th>
-                    <th className="py-3 px-3 text-left">Ventas Convenio (Con Desc.)</th>
-                    <th className="py-3 px-3 text-right">Total Consolidado</th>
-                    <th className="py-3 px-3 text-center">Detalle</th>
-                  </tr>
-                </thead>
+          {(() => {
+            const totalPages = Math.ceil(filteredReporte.length / itemsPerPage) || 1;
+            const paginatedReporte = filteredReporte.slice(
+              (currentPage - 1) * itemsPerPage,
+              currentPage * itemsPerPage
+            );
+
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-left">Producto / Detalle</th>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-center">Lote / Vencimiento</th>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-left">Ventas Particulares (Sin Desc.)</th>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-left">Ventas Convenio (Con Desc.)</th>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-right">Total Consolidado</th>
+                        <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="py-3 px-3 text-center">Detalle</th>
+                      </tr>
+                    </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredReporte.length === 0 ? (
+                  {paginatedReporte.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-gray-400">
                         No se registraron ventas de productos en este período.
                       </td>
                     </tr>
                   ) : (
-                    filteredReporte.map((p) => (
+                    paginatedReporte.map((p) => (
                       <tr key={p.productoId} className="hover:bg-gray-50">
                         {/* Producto */}
                         <td className="py-3 px-3">
@@ -643,9 +662,21 @@ const HistorialVentasProducto: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Paginación */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+              totalItems={filteredReporte.length}
+              itemsPerPage={itemsPerPage}
+              itemName="productos"
+            />
           </div>
-        </>
-      )}
+        );
+      })()}
+    </>
+  )}
 
       {/* Modal de Detalle de Ventas del Producto */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
@@ -683,16 +714,16 @@ const HistorialVentasProducto: React.FC = () => {
 
             <div className="max-h-72 overflow-y-auto rounded-lg border">
               <table className="w-full text-xs">
-                <thead className="bg-gray-100 text-gray-700 uppercase">
+                <thead>
                   <tr>
-                    <th className="p-2 text-left">Nº Venta</th>
-                    <th className="p-2 text-left">Fecha</th>
-                    <th className="p-2 text-left">Cliente</th>
-                    <th className="p-2 text-left">Seguro</th>
-                    <th className="p-2 text-center">Cant.</th>
-                    <th className="p-2 text-center">P. Unitario</th>
-                    <th className="p-2 text-center">Descuento</th>
-                    <th className="p-2 text-right">Total</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-left">Nº Venta</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-left">Fecha</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-left">Cliente</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-left">Seguro</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Cant.</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">P. Unitario</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-center">Descuento</th>
+                    <th style={{ backgroundColor: "#2563eb", color: "#ffffff" }} className="p-2 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

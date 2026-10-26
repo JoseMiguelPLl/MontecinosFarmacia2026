@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import * as XLSX from "xlsx";
+import Pagination from "./Pagination";
 import {
   DollarSign,
   QrCode,
@@ -12,6 +14,7 @@ import {
   User,
   FileText,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import logo from "../img/logo1.png";
 
@@ -86,6 +89,12 @@ const CierreCaja: React.FC = () => {
   const [data, setData] = useState<CierreCajaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fechaIni, fechaFin, idUsuario, data]);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/Usuarios/ListarUsuariosActivos")
@@ -335,6 +344,68 @@ const CierreCaja: React.FC = () => {
     }
   };
 
+  const generarExcelCierre = () => {
+    if (!data) return;
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // 1. Resumen General
+      const resumenData = [
+        { Concepto: "Período Inicio", Valor: data.fechaInicio },
+        { Concepto: "Período Fin", Valor: data.fechaFin },
+        { Concepto: "Total de Ventas Realizadas", Valor: data.totalVentas },
+        { Concepto: "Total de Productos Vendidos", Valor: data.totalProductosVendidos },
+        { Concepto: "Subtotal Bruto (Bs)", Valor: Number(data.subtotalBruto).toFixed(2) },
+        { Concepto: "Total Descuentos Seguro (Bs)", Valor: Number(data.totalDescuentos).toFixed(2) },
+        { Concepto: "Total Neto Recaudado en Caja (Bs)", Valor: Number(data.totalNetoRecaudado).toFixed(2) },
+        { Concepto: "Costo de Adquisición Estimado (Bs)", Valor: Number(data.costoTotalEstimado).toFixed(2) },
+        { Concepto: "Utilidad Bruta Estimada (Bs)", Valor: Number(data.utilidadBrutaEstimada).toFixed(2) },
+      ];
+      const wsResumen = XLSX.utils.json_to_sheet(resumenData);
+      XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen General");
+
+      // 2. Desglose Métodos de Pago
+      const metodosData = (data.desglosePorMetodoPago || []).map((m) => ({
+        "Método de Pago": m.tipoPago,
+        "Cantidad de Ventas": m.cantidadVentas,
+        "Total Recaudado (Bs)": Number(m.total).toFixed(2),
+      }));
+      const wsMetodos = XLSX.utils.json_to_sheet(metodosData);
+      XLSX.utils.book_append_sheet(wb, wsMetodos, "Métodos de Pago");
+
+      // 3. Desglose Seguros
+      const segurosData = (data.desglosePorSeguro || []).map((s) => ({
+        "Seguro / Convenio": s.seguro,
+        Modalidad: s.esSeguro ? "Seguro / Convenio" : "Particular",
+        "Cantidad de Ventas": s.cantidadVentas,
+        "Subtotal Bruto (Bs)": Number(s.subtotal).toFixed(2),
+        "Descuento Total (Bs)": Number(s.descuentoTotal).toFixed(2),
+        "Total Neto (Bs)": Number(s.totalNeto).toFixed(2),
+      }));
+      const wsSeguros = XLSX.utils.json_to_sheet(segurosData);
+      XLSX.utils.book_append_sheet(wb, wsSeguros, "Seguros y Convenios");
+
+      // 4. Ventas Conciliadas
+      const ventasData = (data.ventas || []).map((v) => ({
+        "Nº Venta": v.ventaId,
+        Fecha: v.fecha,
+        Cliente: v.cliente,
+        Seguro: v.seguro || "Particular",
+        "Tipo Pago": v.tipoPago,
+        "Ítems": v.cantidadItems,
+        "Subtotal (Bs)": Number(v.subtotal).toFixed(2),
+        "Descuento (Bs)": Number(v.descuentoTotal).toFixed(2),
+        "Total Venta (Bs)": Number(v.totalVenta).toFixed(2),
+      }));
+      const wsVentas = XLSX.utils.json_to_sheet(ventasData);
+      XLSX.utils.book_append_sheet(wb, wsVentas, "Ventas Conciliadas");
+
+      XLSX.writeFile(wb, `cierre_caja_${data.fechaInicio}_${data.fechaFin}.xlsx`);
+    } catch (err) {
+      console.error("Error al exportar Excel de cierre de caja:", err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Controles de Filtros */}
@@ -393,14 +464,27 @@ const CierreCaja: React.FC = () => {
             </button>
           </div>
 
-          <button
-            onClick={generarPDFCierre}
-            disabled={!data || data.totalVentas === 0}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50"
-          >
-            <FileText size={16} />
-            Exportar Acta de Cierre (PDF)
-          </button>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <button
+              onClick={generarExcelCierre}
+              disabled={!data || data.totalVentas === 0}
+              style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
+            >
+              <Download size={16} />
+              <span>Excel</span>
+            </button>
+
+            <button
+              onClick={generarPDFCierre}
+              disabled={!data || data.totalVentas === 0}
+              style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold shadow-md transition disabled:opacity-50 cursor-pointer hover:opacity-95"
+            >
+              <FileText size={16} />
+              <span>Exportar PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -631,81 +715,163 @@ const CierreCaja: React.FC = () => {
           </div>
 
           {/* Listado de Ventas de la Caja */}
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
-                <FileText className="text-blue-600" size={18} />
-                Ventas Conciliadas ({data.ventas?.length || 0})
-              </h3>
-            </div>
+          {(() => {
+            const totalPages =
+              Math.ceil((data.ventas?.length || 0) / itemsPerPage) || 1;
+            const paginatedVentas = (data.ventas || []).slice(
+              (currentPage - 1) * itemsPerPage,
+              currentPage * itemsPerPage
+            );
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-blue-600 text-white text-xs uppercase">
-                  <tr>
-                    <th className="py-2.5 px-3 text-left">Nº Venta</th>
-                    <th className="py-2.5 px-3 text-left">Fecha</th>
-                    <th className="py-2.5 px-3 text-left">Cliente</th>
-                    <th className="py-2.5 px-3 text-left">Seguro</th>
-                    <th className="py-2.5 px-3 text-center">Tipo Pago</th>
-                    <th className="py-2.5 px-3 text-center">Ítems</th>
-                    <th className="py-2.5 px-3 text-right">Subtotal</th>
-                    <th className="py-2.5 px-3 text-right">Descuento</th>
-                    <th className="py-2.5 px-3 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {data.ventas?.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-6 text-center text-gray-400">
-                        No se registraron ventas en el período seleccionado.
-                      </td>
-                    </tr>
-                  ) : (
-                    data.ventas?.map((v) => (
-                      <tr key={v.ventaId} className="hover:bg-gray-50 border-b">
-                        <td className="py-2 px-3 font-semibold text-blue-700">#{v.ventaId}</td>
-                        <td className="py-2 px-3 text-gray-600">{v.fecha}</td>
-                        <td className="py-2 px-3 font-medium text-gray-800">{v.cliente}</td>
-                        <td className="py-2 px-3">
-                          {v.seguro && v.seguro !== "Particular" ? (
-                            <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full font-semibold border border-purple-200">
-                              {v.seguro}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-xs italic">Particular</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                              v.tipoPago === "Efectivo"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {v.tipoPago}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-center text-gray-600 font-medium">
-                          {v.cantidadItems}
-                        </td>
-                        <td className="py-2 px-3 text-right text-gray-600">
-                          Bs {Number(v.subtotal).toFixed(2)}
-                        </td>
-                        <td className="py-2 px-3 text-right text-red-600 font-medium">
-                          {v.descuentoTotal > 0 ? `-Bs ${Number(v.descuentoTotal).toFixed(2)}` : "Bs 0.00"}
-                        </td>
-                        <td className="py-2 px-3 text-right font-bold text-gray-900">
-                          Bs {Number(v.totalVenta).toFixed(2)}
-                        </td>
+            return (
+              <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
+                    <FileText className="text-blue-600" size={18} />
+                    Ventas Conciliadas ({data.ventas?.length || 0})
+                  </h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-left"
+                        >
+                          Nº Venta
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-left"
+                        >
+                          Fecha
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-left"
+                        >
+                          Cliente
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-left"
+                        >
+                          Seguro
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-center"
+                        >
+                          Tipo Pago
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-center"
+                        >
+                          Ítems
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-right"
+                        >
+                          Subtotal
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-right"
+                        >
+                          Descuento
+                        </th>
+                        <th
+                          style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                          className="py-2.5 px-3 text-right"
+                        >
+                          Total
+                        </th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginatedVentas.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={9}
+                            className="py-6 text-center text-gray-400"
+                          >
+                            No se registraron ventas en el período seleccionado.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedVentas.map((v) => (
+                          <tr
+                            key={v.ventaId}
+                            className="hover:bg-gray-50 border-b"
+                          >
+                            <td className="py-2 px-3 font-semibold text-blue-700">
+                              #{v.ventaId}
+                            </td>
+                            <td className="py-2 px-3 text-gray-600">
+                              {v.fecha}
+                            </td>
+                            <td className="py-2 px-3 font-medium text-gray-800">
+                              {v.cliente}
+                            </td>
+                            <td className="py-2 px-3">
+                              {v.seguro && v.seguro !== "Particular" ? (
+                                <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full font-semibold border border-purple-200">
+                                  {v.seguro}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs italic">
+                                  Particular
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                                  v.tipoPago === "Efectivo"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {v.tipoPago}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-center text-gray-600 font-medium">
+                              {v.cantidadItems}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-600">
+                              Bs {Number(v.subtotal).toFixed(2)}
+                            </td>
+                            <td className="py-2 px-3 text-right text-red-600 font-medium">
+                              {v.descuentoTotal > 0
+                                ? `-Bs ${Number(v.descuentoTotal).toFixed(2)}`
+                                : "Bs 0.00"}
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-gray-900">
+                              Bs {Number(v.totalVenta).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Paginación */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  totalItems={data.ventas?.length || 0}
+                  itemsPerPage={itemsPerPage}
+                  itemName="ventas"
+                />
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
