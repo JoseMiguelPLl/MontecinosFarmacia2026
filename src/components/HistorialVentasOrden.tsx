@@ -16,15 +16,20 @@ interface Venta {
   ventaId: number;
   fechaVenta: string;
   cliente: string;
+  seguro?: string;
   tipoPago: string;
+  subTotal?: number;
+  descuentoTotal?: number;
   totalVenta: number;
   detalles: DetalleVenta[];
 }
 
 interface DetalleVenta {
+  productoId?: number;
   producto: string;
   cantidad: number;
   precioUnitario: number;
+  descuento?: number;
   totalDetalle: number;
 }
 
@@ -139,20 +144,26 @@ const generarPDF = () => {
       .join("\n");
 
     const precios = v.detalles
-      .map(d => `${d.precioUnitario} Bs`)
+      .map(d => `${Number(d.precioUnitario).toFixed(2)} Bs`)
+      .join("\n");
+
+    const descuentos = v.detalles
+      .map(d => `${Number(d.descuento || 0).toFixed(2)} Bs`)
       .join("\n");
 
     const totales = v.detalles
-      .map(d => `${d.totalDetalle} Bs`)
+      .map(d => `${Number(d.totalDetalle).toFixed(2)} Bs`)
       .join("\n");
 
     rows.push([
       v.ventaId,
       v.cliente,
+      v.seguro || "Particular",
       v.fechaVenta,
       v.tipoPago,
       productos,
       precios,
+      descuentos,
       totales
     ]);
 
@@ -163,10 +174,12 @@ const generarPDF = () => {
     head:[[
       "Orden",
       "Cliente",
+      "Seguro",
       "Fecha",
       "Pago",
       "Productos",
-      "Precio",
+      "P. Lista",
+      "Descuento",
       "Total"
     ]],
 
@@ -175,8 +188,8 @@ const generarPDF = () => {
     theme:"grid",
 
     styles:{
-      fontSize:9,
-      cellPadding:3
+      fontSize:8,
+      cellPadding:2.5
     },
 
     headStyles:{
@@ -191,7 +204,7 @@ const generarPDF = () => {
     },
 
     columnStyles:{
-      4:{halign:"left"}
+      5:{halign:"left"}
     },
 
     alternateRowStyles:{
@@ -286,8 +299,10 @@ const generarPDF = () => {
             <tr>
               <th className="p-3 bg-blue">Orden</th>
               <th className="p-3 bg-blue">Cliente</th>
+              <th className="p-3 bg-blue">Seguro</th>
               <th className="p-3 bg-blue">Fecha</th>
               <th className="p-3 bg-blue">Tipo Pago</th>
+              <th className="p-3 bg-blue">Descuento</th>
               <th className="p-3 bg-blue">Total</th>
               <th className="p-3 bg-blue">Detalle</th>
             </tr>
@@ -295,17 +310,31 @@ const generarPDF = () => {
 
           <tbody>
             {ventas.map((v) => (
-              <tr key={v.ventaId} className="border-b">
-                <td className="p-3">{v.ventaId}</td>
-                <td className="p-3">{v.cliente}</td>
+              <tr key={v.ventaId} className="border-b hover:bg-gray-50">
+                <td className="p-3 font-semibold">{v.ventaId}</td>
+                <td className="p-3 font-medium">{v.cliente}</td>
+                <td className="p-3">
+                  {v.seguro ? (
+                    <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold border border-blue-200">
+                      {v.seguro}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs italic">Particular</span>
+                  )}
+                </td>
                 <td className="p-3">{v.fechaVenta}</td>
                 <td className="p-3">{v.tipoPago}</td>
-                <td className="p-3">{v.totalVenta.toFixed(2)} Bs</td>
+                <td className="p-3 text-green-600 font-semibold">
+                  {v.descuentoTotal && v.descuentoTotal > 0
+                    ? `-${Number(v.descuentoTotal).toFixed(2)} Bs`
+                    : "0.00 Bs"}
+                </td>
+                <td className="p-3 font-bold text-blue-700">{v.totalVenta.toFixed(2)} Bs</td>
 
                 <td className="p-3">
                   <button
                     onClick={() => handleViewDetails(v)}
-                    className="text-blue-600"
+                    className="text-blue-600 font-medium hover:underline"
                   >
                     Ver
                   </button>
@@ -316,37 +345,57 @@ const generarPDF = () => {
         </table>
       </div>
 
-      <div className="mt-4 font-bold">
-        Total General: {totalGeneral.toFixed(2)} Bs
+      <div className="mt-4 font-bold text-lg text-gray-800">
+        Total General: <span className="text-blue-600">{totalGeneral.toFixed(2)} Bs</span>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         {selectedVenta && (
           <div>
-            <h2 className="text-xl font-bold mb-4">
+            <h2 className="text-xl font-bold mb-3 text-blue-700">
               Venta #{selectedVenta.ventaId}
             </h2>
 
-            <p>Cliente: {selectedVenta.cliente}</p>
-            <p>Tipo Pago: {selectedVenta.tipoPago}</p>
+            <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 p-3 rounded-lg border mb-4">
+              <p><span className="font-semibold text-gray-600">Cliente:</span> {selectedVenta.cliente}</p>
+              <p>
+                <span className="font-semibold text-gray-600">Seguro:</span>{" "}
+                <span className="font-medium text-blue-700">{selectedVenta.seguro || "Particular (Sin Seguro)"}</span>
+              </p>
+              <p><span className="font-semibold text-gray-600">Fecha:</span> {selectedVenta.fechaVenta}</p>
+              <p><span className="font-semibold text-gray-600">Tipo Pago:</span> {selectedVenta.tipoPago}</p>
+              {selectedVenta.descuentoTotal && selectedVenta.descuentoTotal > 0 ? (
+                <>
+                  <p><span className="font-semibold text-gray-600">SubTotal:</span> {(selectedVenta.subTotal || (selectedVenta.totalVenta + selectedVenta.descuentoTotal)).toFixed(2)} Bs</p>
+                  <p className="text-green-700 font-semibold"><span>Descuento Seguro:</span> -{Number(selectedVenta.descuentoTotal).toFixed(2)} Bs</p>
+                </>
+              ) : null}
+              <p className="col-span-2 text-base font-bold text-blue-700 border-t pt-2">
+                Total Venta: {selectedVenta.totalVenta.toFixed(2)} Bs
+              </p>
+            </div>
 
-            <table className="min-w-full mt-4 border">
+            <table className="min-w-full mt-2 border text-sm">
               <thead className="bg-blue text-white">
                 <tr>
-                  <th className="p-2 bg-blue">Producto</th>
-                  <th className="p-2 bg-blue">Cantidad</th>
-                  <th className="p-2 bg-blue">Precio</th>
-                  <th className="p-2 bg-blue">Total</th>
+                  <th className="p-2 bg-blue text-left">Producto</th>
+                  <th className="p-2 bg-blue text-center">Cantidad</th>
+                  <th className="p-2 bg-blue text-center">Precio U.</th>
+                  <th className="p-2 bg-blue text-center">Descuento</th>
+                  <th className="p-2 bg-blue text-center">Total</th>
                 </tr>
               </thead>
 
               <tbody>
                 {selectedVenta.detalles.map((d, i) => (
-                  <tr key={i}>
+                  <tr key={i} className="border-b">
                     <td className="p-2">{d.producto}</td>
-                    <td className="p-2">{d.cantidad}</td>
-                    <td className="p-2">{d.precioUnitario}</td>
-                    <td className="p-2">{d.totalDetalle}</td>
+                    <td className="p-2 text-center">{d.cantidad}</td>
+                    <td className="p-2 text-center">{Number(d.precioUnitario).toFixed(2)} Bs</td>
+                    <td className="p-2 text-center text-green-600 font-medium">
+                      {d.descuento && d.descuento > 0 ? `-${Number(d.descuento).toFixed(2)} Bs` : "0.00 Bs"}
+                    </td>
+                    <td className="p-2 text-center font-bold">{Number(d.totalDetalle).toFixed(2)} Bs</td>
                   </tr>
                 ))}
               </tbody>

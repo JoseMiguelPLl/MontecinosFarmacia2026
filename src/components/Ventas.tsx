@@ -63,6 +63,7 @@ interface Clientes {
 interface Seguro {
   id: number;
   nombre: string;
+  porcentaje?: number;
   estado?: string;
 }
 
@@ -74,6 +75,7 @@ interface Producto {
   nombre: string;
   descripcion: string;
   precio: number;
+  precio_compra?: number;
   concentracion: number;
   eliminado?: boolean;
   idpresentacion: number;
@@ -83,6 +85,33 @@ interface Producto {
   nombre_generico: string;
   vencimiento: string;
   fecha?: string | null;
+}
+
+interface DetalleCotizacion {
+  idproducto: number;
+  nombreProducto: string;
+  cantidad: number;
+  stockDisponible?: number;
+  precioCompra: number;
+  precioParticular: number;
+  precioConvenio: number;
+  descuentoUnitario: number;
+  descuentoTotal: number;
+  subtotal: number;
+  total: number;
+}
+
+interface CotizacionVenta {
+  idcliente: number;
+  nombreCliente: string;
+  idseguro: number | null;
+  nombreSeguro: string;
+  porcentajeSeguro: number;
+  esSeguro: boolean;
+  subtotal: number;
+  descuentoTotal: number;
+  total: number;
+  detalles: DetalleCotizacion[];
 }
 
 interface Tipo {
@@ -234,16 +263,126 @@ const hoy = new Date().toISOString().split("T")[0];
     idseguro: "",
   });
   const [guardandoCliente, setGuardandoCliente] = useState(false);
+  const [cotizacion, setCotizacion] = useState<CotizacionVenta | null>(null);
 
   const name = localStorage.getItem("userName");
   
+  // --- COTIZACIÓN Y CÁLCULO DE PRECIOS (PARTICULAR VS SEGURO) ---
   useEffect(() => {
-    const nuevoTotal = selectedProducto.reduce((total, producto) => {
-      const cantidad = cantidadProducto[producto.id] || 1;
-      return total + cantidad * producto.precio;
-    }, 0);
-    setTotalGeneral(nuevoTotal);
-  }, [selectedProducto, cantidadProducto]);
+    if (selectedProducto.length === 0) {
+      setCotizacion(null);
+      setTotalGeneral(0);
+      return;
+    }
+
+    // 1. Cálculo local inmediato (feedback en tiempo real sin latencia)
+    const clienteSeguro = selectedUser?.idseguro
+      ? seguros.find((s) => s.id === selectedUser.idseguro)
+      : null;
+    const esSeguro = Boolean(clienteSeguro);
+    const porcentajeSeguro = Number(clienteSeguro?.porcentaje ?? 25);
+
+    let subtotalAcum = 0;
+    let descuentoTotalAcum = 0;
+    let totalAcum = 0;
+
+    const detallesCalculados: DetalleCotizacion[] = selectedProducto.map((p) => {
+      const cant = cantidadProducto[p.id] || 1;
+      const precioParticular = Number(p.precio) || 0;
+      const precioCompra = Number(p.precio_compra) > 0 ? Number(p.precio_compra) : precioParticular / 1.3;
+
+      if (esSeguro) {
+        // Precio Convenio Unitario: Math.Round(producto.precio_compra * (1 + (porcentaje / 100)), 2)
+        const precioConvenio = Math.round(precioCompra * (1 + (porcentajeSeguro / 100)) * 100) / 100;
+        const descuentoUnitario = Math.max(0, Math.round((precioParticular - precioConvenio) * 100) / 100);
+        const descuentoTotal = Math.round(descuentoUnitario * cant * 100) / 100;
+        const subtotal = Math.round(precioParticular * cant * 100) / 100;
+        const total = Math.round(precioConvenio * cant * 100) / 100;
+
+        subtotalAcum += subtotal;
+        descuentoTotalAcum += descuentoTotal;
+        totalAcum += total;
+
+        return {
+          idproducto: p.id,
+          nombreProducto: p.nombre,
+          cantidad: cant,
+          stockDisponible: p.stock,
+          precioCompra,
+          precioParticular,
+          precioConvenio,
+          descuentoUnitario,
+          descuentoTotal,
+          subtotal,
+          total,
+        };
+      } else {
+        const subtotal = Math.round(precioParticular * cant * 100) / 100;
+        subtotalAcum += subtotal;
+        totalAcum += subtotal;
+
+        return {
+          idproducto: p.id,
+          nombreProducto: p.nombre,
+          cantidad: cant,
+          stockDisponible: p.stock,
+          precioCompra,
+          precioParticular,
+          precioConvenio: precioParticular,
+          descuentoUnitario: 0,
+          descuentoTotal: 0,
+          subtotal,
+          total: subtotal,
+        };
+      }
+    });
+
+    const cotizacionLocal: CotizacionVenta = {
+      idcliente: selectedUser ? selectedUser.id : 0,
+      nombreCliente: selectedUser ? selectedUser.nombre : "Particular",
+      idseguro: selectedUser?.idseguro ?? null,
+      nombreSeguro: clienteSeguro?.nombre || (esSeguro ? "Seguro" : "Particular"),
+      porcentajeSeguro: esSeguro ? porcentajeSeguro : 0,
+      esSeguro,
+      subtotal: subtotalAcum,
+      descuentoTotal: descuentoTotalAcum,
+      total: totalAcum,
+      detalles: detallesCalculados,
+    };
+
+    setCotizacion(cotizacionLocal);
+    setTotalGeneral(cotizacionLocal.total);
+
+    // 2. Consulta al backend (POST /api/Ventas/CalcularVenta) para sincronización exacta
+    if (selectedUser && selectedUser.id) {
+      const itemsPayload = selectedProducto.map((p) => ({
+        idproducto: p.id,
+        cantidad: cantidadProducto[p.id] || 1,
+      }));
+
+      fetch("http://localhost:5000/api/Ventas/CalcularVenta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idcliente: selectedUser.id,
+          items: itemsPayload,
+        }),
+      })
+        .then((res) => {
+          if (res.ok) return res.json();
+          return null;
+        })
+        .then((data: CotizacionVenta | null) => {
+          if (data && data.detalles && Array.isArray(data.detalles)) {
+            setCotizacion(data);
+            setTotalGeneral(data.total);
+          }
+        })
+        .catch((err) => {
+          console.error("Error al cotizar venta en el backend:", err);
+        });
+    }
+  }, [selectedProducto, cantidadProducto, selectedUser, seguros]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -468,10 +607,12 @@ const hoy = new Date().toISOString().split("T")[0];
     }
 
     const iduser = localStorage.getItem("userId");
+    const currentCotizacion = cotizacion;
+    const totalVentaFinal = currentCotizacion ? currentCotizacion.total : totalGeneral;
 
     const queryParams = new URLSearchParams({
       fecha: addVenta.fecha,
-      total: totalGeneral.toString(),
+      total: totalVentaFinal.toFixed(2),
       idusuario: iduser ? iduser : "0",
       idcliente: selectedUser.id.toString(),
       tipoPago: addVenta.tipoPago || "Efectivo"
@@ -494,13 +635,16 @@ const hoy = new Date().toISOString().split("T")[0];
 
       for (const producto of selectedProducto) {
         const cantidad = cantidadProducto[producto.id] || 1;
-        const totalProducto = cantidad * producto.precio;
+        const detItem = currentCotizacion?.detalles?.find((d) => d.idproducto === producto.id);
+        const descuentoItem = detItem ? detItem.descuentoTotal : 0;
+        const precioParticular = detItem ? detItem.precioParticular : producto.precio;
+        const totalDetalle = detItem ? detItem.total : (cantidad * producto.precio);
 
         const queryParamsDetalle = new URLSearchParams({
           cantidad: cantidad.toString(),
-          descuento: "0",
-          precio: producto.precio.toString(),
-          total: totalProducto.toString(),
+          descuento: descuentoItem.toFixed(2),
+          precio: precioParticular.toFixed(2),
+          total: totalDetalle.toFixed(2),
           idproducto: producto.id.toString(),
           idventa: idventa.toString(),
         }).toString();
@@ -517,123 +661,148 @@ const hoy = new Date().toISOString().split("T")[0];
         }
       }
 
+      const generarPDF = () => {
+        try {
+          const doc = new jsPDF({
+            unit: "mm",
+            format: [80, 197]
+          });
+
+          const margin = 5;
+          const pageWidth = doc.internal.pageSize.getWidth();
+
+          doc.setFont("helvetica");
+          doc.setTextColor(0, 0, 0);
+
+          // ENCABEZADO
+          doc.setFontSize(12);
+          doc.setFont(undefined, "bold");
+
+          configuracion.forEach((item) => {
+            doc.text(item.nombre, pageWidth / 2, 15, { align: "center" });
+
+            doc.setFontSize(8);
+            doc.setFont(undefined, "normal");
+
+            doc.text(`Direccion: ${item.direccion}`, margin, 20);
+            doc.text(`Cel: ${item.telefono}`, margin, 24);
+          });
+
+          doc.setFontSize(8);
+
+          // NUMERO RECIBO
+          doc.text(`Recibo Nro: ${Math.floor(Math.random() * 1000000000)}`, margin, 30);
+
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.2);
+          doc.line(margin, 33, pageWidth - margin, 33);
+
+          const now = new Date();
+          const fecha = now.toLocaleDateString();
+          const hora = now.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+
+          // CLIENTE
+          let currentY = 38;
+          doc.text(`Sr(a): ${selectedUser.nombre}`.substring(0, 30), margin, currentY);
+          currentY += 4;
+          doc.text(`CI/NIT: ${selectedUser.ci}`.substring(0, 35), margin, currentY);
+          currentY += 4;
+
+          if (currentCotizacion?.esSeguro) {
+            doc.setFont(undefined, "bold");
+            doc.text(`SEGURO: ${currentCotizacion.nombreSeguro} (${currentCotizacion.porcentajeSeguro}%)`.substring(0, 35), margin, currentY);
+            doc.setFont(undefined, "normal");
+            currentY += 4;
+          }
+
+          doc.text(`FECHA: ${fecha}`, margin, currentY);
+          doc.text(`${hora}`, margin + 25, currentY);
+          currentY += 4;
+
+          doc.line(margin, currentY, pageWidth - margin, currentY);
+          currentY += 5;
+
+          // CABECERA TABLA
+          doc.setFont(undefined, "bold");
+          doc.text("CANT", margin, currentY);
+          doc.text("CONCEPTO", margin + 12, currentY);
+          doc.text("P.U.", margin + 45, currentY);
+          doc.text("IMP.", margin + 58, currentY);
+          doc.setFont(undefined, "normal");
+
+          let yPos = currentY + 6;
+
+          // PRODUCTOS
+          selectedProducto.forEach((producto) => {
+            const cantidad = cantidadProducto[producto.id] || 1;
+            const det = currentCotizacion?.detalles?.find((d) => d.idproducto === producto.id);
+            const pu = currentCotizacion?.esSeguro && det ? det.precioConvenio : producto.precio;
+            const imp = currentCotizacion?.esSeguro && det ? det.total : cantidad * producto.precio;
+
+            const nombreDividido = doc.splitTextToSize(producto.nombre, 28);
+
+            doc.text(String(cantidad), margin, yPos);
+            doc.text(nombreDividido, margin + 12, yPos);
+            doc.text(pu.toFixed(2), margin + 45, yPos);
+            doc.text(imp.toFixed(2), margin + 58, yPos);
+
+            yPos += Math.max(nombreDividido.length * 4.5, 5);
+          });
+
+          // LINEA ANTES DEL TOTAL
+          doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+          yPos += 7;
+
+          if (currentCotizacion?.esSeguro) {
+            doc.setFontSize(8);
+            doc.text("SUBTOTAL:", margin + 22, yPos);
+            doc.text(`${currentCotizacion.subtotal.toFixed(2)} Bs`, pageWidth - margin, yPos, { align: "right" });
+            yPos += 5;
+
+            doc.text(`DESC. SEGURO:`, margin + 22, yPos);
+            doc.text(`-${currentCotizacion.descuentoTotal.toFixed(2)} Bs`, pageWidth - margin, yPos, { align: "right" });
+            yPos += 5;
+          }
+
+          // TOTAL
+          doc.setFont(undefined, "bold");
+          doc.setFontSize(10);
+
+          doc.text("TOTAL:", margin + 22, yPos);
+          doc.text(`${totalVentaFinal.toFixed(2)} Bs`, pageWidth - margin, yPos, { align: "right" });
+
+          doc.setFont(undefined, "normal");
+          yPos += 8;
+
+          // VENDEDOR
+          doc.setFontSize(8);
+          doc.text(`Vendedor: ${name}`, margin, yPos);
+          yPos += 6;
+
+          doc.line(margin, yPos + 1, pageWidth - margin, yPos + 1);
+          yPos += 8;
+
+          doc.text("GRACIAS POR SU COMPRA.", pageWidth / 2, yPos, { align: "center" });
+
+          doc.save(`recibo_${selectedUser.nombre}_${fecha}.pdf`);
+
+        } catch (error) {
+          console.error("Error al generar la factura:", error);
+        }
+      };
+
+      generarPDF();
+
       setVenta([...venta, newVenta]);
       setAddVenta({});
       setSelectedProducto([]);
       setCantidadProducto({});
+      setCotizacion(null);
       setTotalGeneral(0);
-
-  const generarPDF = () => {
-  try {
-
-    const doc = new jsPDF({
-      unit: "mm",
-      format: [80, 197]
-    });
-
-    const margin = 5;
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFont("helvetica");
-    doc.setTextColor(0, 0, 0);
-
-    // ENCABEZADO
-    doc.setFontSize(12);
-    doc.setFont(undefined, "bold");
-
-    configuracion.forEach((item) => {
-      doc.text(item.nombre, pageWidth / 2, 15, { align: "center" });
-
-      doc.setFontSize(8);
-      doc.setFont(undefined, "normal");
-
-      doc.text(`Direccion: ${item.direccion}`, margin, 20);
-      doc.text(`Cel: ${item.telefono}`, margin, 24);
-    });
-
-    doc.setFontSize(8);
-
-    // NUMERO RECIBO
-    doc.text(`Recibo Nro: ${Math.floor(Math.random() * 1000000000)}`, margin, 30);
-
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.2);
-    doc.line(margin, 33, pageWidth - margin, 33);
-
-    const now = new Date();
-    const fecha = now.toLocaleDateString();
-    const hora = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-
-    // CLIENTE
-    doc.text(`Sr(a): ${selectedUser.nombre}`.substring(0, 30), margin, 38);
-    doc.text(`CI/NIT: ${selectedUser.ci}`.substring(0, 35), margin, 42);
-
-    doc.text(`FECHA: ${fecha}`, margin, 46);
-    doc.text(`${hora}`, margin + 25, 46);
-
-    doc.line(margin, 50, pageWidth - margin, 50);
-
-    // CABECERA TABLA
-    doc.text("CANT", margin, 56);
-    doc.text("CONCEPTO", margin + 15, 56);
-    doc.text("P.U.", margin + 45, 56);
-    doc.text("IMP.", margin + 60, 56);
-
-    let yPos = 62;
-    let totalGeneral = 0;
-
-    // PRODUCTOS
-    selectedProducto.forEach((producto) => {
-
-      const cantidad = cantidadProducto[producto.id] || 1;
-      const subtotal = cantidad * producto.precio;
-      totalGeneral += subtotal;
-
-      const nombreDividido = doc.splitTextToSize(producto.nombre, 28);
-
-      doc.text(String(cantidad), margin, yPos);
-      doc.text(nombreDividido, margin + 15, yPos);
-      doc.text(producto.precio.toFixed(2), margin + 45, yPos);
-      doc.text(subtotal.toFixed(2), margin + 60, yPos);
-
-      yPos += nombreDividido.length * 5;
-    });
-
-    // LINEA ANTES DEL TOTAL
-    doc.line(margin, yPos + 3, pageWidth - margin, yPos + 3);
-    yPos += 10;
-
-    // TOTAL
-    doc.setFont(undefined, "bold");
-    doc.setFontSize(10);
-
-    doc.text("TOTAL:", margin + 40, yPos);
-    doc.text(`${totalGeneral.toFixed(2)} Bs`, margin + 60, yPos);
-
-    doc.setFont(undefined, "normal");
-    yPos += 8;
-
-    // VENDEDOR
-    doc.setFontSize(8);
-    doc.text(`Vendedor: ${name}`, margin, yPos);
-    yPos += 7;
-
-    doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
-    yPos += 10;
-
-    doc.text("GRACIAS POR SU COMPRA.", pageWidth / 2, yPos, { align: "center" });
-
-    doc.save(`recibo_${selectedUser.nombre}_${fecha}.pdf`);
-
-  } catch (error) {
-    console.error("Error al generar la factura:", error);
-  }
-};
-      generarPDF();
       
       // Mostrar modal de éxito
       setModal({
@@ -1039,7 +1208,8 @@ const hoy = new Date().toISOString().split("T")[0];
         <div className="flex items-center gap-2">
           <span className="text-gray-500 font-medium">Seguro:</span>
           <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-            {seguros.find((s) => s.id === selectedUser.idseguro)?.nombre || `Seguro #${selectedUser.idseguro}`}
+            {cotizacion?.nombreSeguro || seguros.find((s) => s.id === selectedUser.idseguro)?.nombre || `Seguro #${selectedUser.idseguro}`}
+            {cotizacion?.porcentajeSeguro ? ` (${cotizacion.porcentajeSeguro}%)` : ""}
           </span>
         </div>
       )}
@@ -1047,14 +1217,28 @@ const hoy = new Date().toISOString().split("T")[0];
 
     {selectedProducto.length > 0 && (
       <div className="mt-4">
-        <h3 className="text-md font-semibold mb-3">Productos Seleccionados</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-md font-semibold">Productos Seleccionados</h3>
+          {cotizacion?.esSeguro && (
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-semibold border border-green-200">
+              Convenio {cotizacion.nombreSeguro} ({cotizacion.porcentajeSeguro}%)
+            </span>
+          )}
+        </div>
 
         <div className="max-h-64 overflow-y-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead className="bg-blue-600 text-white">
               <tr>
                 <th className="px-2 py-1.5 text-left bg-blue font-medium">Producto</th>
-                <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio U.</th>
+                {cotizacion?.esSeguro ? (
+                  <>
+                    <th className="px-2 py-1.5 text-center bg-blue font-medium">P. Normal</th>
+                    <th className="px-2 py-1.5 text-center bg-blue font-medium">P. Seguro</th>
+                  </>
+                ) : (
+                  <th className="px-2 py-1.5 text-center bg-blue font-medium">Precio U.</th>
+                )}
                 <th className="px-2 py-1.5 text-center bg-blue font-medium">Cantidad</th>
                 <th className="px-2 py-1.5 text-center bg-blue font-medium">Total</th>
                 <th className="px-2 py-1.5 text-center bg-blue font-medium">Quitar</th>
@@ -1062,114 +1246,154 @@ const hoy = new Date().toISOString().split("T")[0];
             </thead>
 
             <tbody className="divide-y divide-gray-200">
-              {selectedProducto.map((producto) => (
-                <motion.tr
-                  key={producto.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="border-t"
-                >
-                  <td className="px-2 py-1.5 text-left">{producto.nombre}</td>
+              {selectedProducto.map((producto) => {
+                const det = cotizacion?.detalles?.find((d) => d.idproducto === producto.id);
+                const cant = cantidadProducto[producto.id] || 1;
 
-                  <td className="px-2 py-1.5 text-center">
-                    {producto.precio} Bs
-                  </td>
+                return (
+                  <motion.tr
+                    key={producto.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="border-t"
+                  >
+                    <td className="px-2 py-1.5 text-left font-medium">{producto.nombre}</td>
 
-                  <td className="px-2 py-1.5 text-center">
-                    <div className="flex items-center justify-center gap-1">
+                    {cotizacion?.esSeguro ? (
+                      <>
+                        <td className="px-2 py-1.5 text-center">
+                          <span className="line-through text-gray-400 text-xs">
+                            {(det ? det.precioParticular : producto.precio).toFixed(2)} Bs
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          <span className="font-bold text-green-700 text-xs">
+                            {(det ? det.precioConvenio : producto.precio).toFixed(2)} Bs
+                          </span>
+                        </td>
+                      </>
+                    ) : (
+                      <td className="px-2 py-1.5 text-center">
+                        {Number(producto.precio).toFixed(2)} Bs
+                      </td>
+                    )}
 
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                          const currentQty =
-                            cantidadProducto[producto.id] || 1;
+                    <td className="px-2 py-1.5 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => {
+                            const currentQty = cantidadProducto[producto.id] || 1;
+                            if (currentQty > 1) {
+                              handleChange(
+                                {
+                                  target: {
+                                    value: (currentQty - 1).toString(),
+                                  },
+                                } as any,
+                                producto.id
+                              );
+                            }
+                          }}
+                          className="p-1 rounded-full hover:bg-red-100 bg-red-50 text-red-600"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </motion.button>
 
-                          if (currentQty > 1) {
+                        <input
+                          type="number"
+                          value={cantidadProducto[producto.id] || 1}
+                          onChange={(e) => handleChange(e, producto.id)}
+                          className="w-10 px-1 py-0.5 border rounded text-center text-xs"
+                        />
+
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => {
+                            const currentQty = cantidadProducto[producto.id] || 1;
                             handleChange(
                               {
                                 target: {
-                                  value: (currentQty - 1).toString(),
+                                  value: (currentQty + 1).toString(),
                                 },
                               } as any,
                               producto.id
                             );
-                          }
-                        }}
-                        className="p-1 rounded-full hover:bg-red-100 bg-red-50 text-red-600"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </motion.button>
+                          }}
+                          className="p-1 rounded-full hover:bg-green-100 bg-green-50 text-green-600"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </motion.button>
+                      </div>
+                    </td>
 
-                      <input
-                        type="number"
-                        value={cantidadProducto[producto.id] || 1}
-                        onChange={(e) =>
-                          handleChange(e, producto.id)
-                        }
-                        className="w-10 px-1 py-0.5 border rounded text-center text-xs"
-                      />
+                    <td className="px-2 py-1.5 text-center">
+                      {cotizacion?.esSeguro && det ? (
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-blue-700">
+                            {det.total.toFixed(2)} Bs
+                          </span>
+                          <span className="text-[10px] text-green-600 font-semibold">
+                            Desc: -{det.descuentoTotal.toFixed(2)} Bs
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold">
+                          {(cant * Number(producto.precio)).toFixed(2)} Bs
+                        </span>
+                      )}
+                    </td>
 
+                    <td className="px-2 py-1.5 text-center">
                       <motion.button
+                        whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                          const currentQty =
-                            cantidadProducto[producto.id] || 1;
-
-                          handleChange(
-                            {
-                              target: {
-                                value: (currentQty + 1).toString(),
-                              },
-                            } as any,
-                            producto.id
-                          );
-                        }}
-                        className="p-1 rounded-full hover:bg-green-100 bg-green-50 text-green-600"
+                        onClick={() => handleRemoveProducto(producto.id)}
+                        className="p-1 rounded-full hover:bg-red bg-red text-white"
                       >
-                        <Plus className="h-3 w-3" />
+                        <X className="h-3 w-3" />
                       </motion.button>
-
-                    </div>
-                  </td>
-
-                  <td className="px-2 py-1.5 text-center">
-                    {(cantidadProducto[producto.id] || 1) *
-                      producto.precio} Bs
-                  </td>
-
-                  <td className="px-2 py-1.5 text-center">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() =>
-                        handleRemoveProducto(producto.id)
-                      }
-                      className="p-1 rounded-full hover:bg-red bg-red text-white"
-                    >
-                      <X className="h-3 w-3" />
-                    </motion.button>
-                  </td>
-                </motion.tr>
-              ))}
+                    </td>
+                  </motion.tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        <div className="mt-3 flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-          <span className="text-md font-semibold">
-            Total:
-          </span>
-
-          <span className="text-lg font-bold text-blue-600">
-            {totalGeneral} Bs
-          </span>
-        </div>
+        {cotizacion?.esSeguro ? (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1.5 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Subtotal (Precio Particular):</span>
+              <span className="font-medium">{cotizacion.subtotal.toFixed(2)} Bs</span>
+            </div>
+            <div className="flex justify-between text-green-700 font-semibold">
+              <span>Descuento Seguro ({cotizacion.nombreSeguro} {cotizacion.porcentajeSeguro}%):</span>
+              <span>-{cotizacion.descuentoTotal.toFixed(2)} Bs</span>
+            </div>
+            <div className="border-t border-blue-200 pt-1.5 flex justify-between items-center">
+              <span className="text-base font-bold text-gray-800">Total a Pagar:</span>
+              <span className="text-xl font-extrabold text-blue-700">
+                {cotizacion.total.toFixed(2)} Bs
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            <span className="text-md font-semibold">
+              Total:
+            </span>
+            <span className="text-lg font-bold text-blue-600">
+              {totalGeneral.toFixed(2)} Bs
+            </span>
+          </div>
+        )}
 
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleAgregar}
-          className="w-full mt-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md text-sm"
+          className="w-full mt-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md text-sm font-semibold"
         >
           Guardar Venta
         </motion.button>

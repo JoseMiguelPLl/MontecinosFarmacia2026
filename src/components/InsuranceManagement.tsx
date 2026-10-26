@@ -13,6 +13,7 @@ import "./LaboratoryManagement.css";
 interface Seguro {
   id: number;
   nombre: string;
+  porcentaje?: number;
   estado?: string;
   eliminado?: boolean;
 }
@@ -29,6 +30,7 @@ const InsuranceManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [nombre, setNombre] = useState("");
+  const [porcentaje, setPorcentaje] = useState<number | string>(25);
   const [editSeguroId, setEditSeguroId] = useState<number | null>(null);
   const [alert, setAlert] = useState<AlertState>({
     show: false,
@@ -66,9 +68,15 @@ const InsuranceManagement: React.FC = () => {
       return;
     }
 
+    const numPorcentaje = Number(porcentaje);
+    if (isNaN(numPorcentaje) || numPorcentaje < 0) {
+      showAlert("error", "Por favor ingrese un porcentaje válido (>= 0).");
+      return;
+    }
+
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Seguros/Crear?nombre=${encodeURIComponent(nombre.trim())}`,
+        `http://localhost:5000/api/Seguros/Crear?nombre=${encodeURIComponent(nombre.trim())}&porcentaje=${encodeURIComponent(numPorcentaje)}`,
         {
           method: "POST",
         }
@@ -82,6 +90,7 @@ const InsuranceManagement: React.FC = () => {
       const data = await response.json();
       setSeguros((prev) => [...prev, data]);
       setNombre("");
+      setPorcentaje(25);
       showAlert("success", "Seguro registrado exitosamente");
       fetchSeguros();
     } catch (error) {
@@ -93,11 +102,13 @@ const InsuranceManagement: React.FC = () => {
   const handleEdit = (seg: Seguro) => {
     setEditSeguroId(seg.id);
     setNombre(seg.nombre);
+    setPorcentaje(seg.porcentaje !== undefined ? seg.porcentaje : 25);
   };
 
   const handleReset = () => {
     setEditSeguroId(null);
     setNombre("");
+    setPorcentaje(25);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -107,9 +118,15 @@ const InsuranceManagement: React.FC = () => {
       return;
     }
 
+    const numPorcentaje = Number(porcentaje);
+    if (isNaN(numPorcentaje) || numPorcentaje < 0) {
+      showAlert("error", "Por favor ingrese un porcentaje válido (>= 0).");
+      return;
+    }
+
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Seguros/Actualizar?id=${editSeguroId}&nombre=${encodeURIComponent(nombre.trim())}`,
+        `http://localhost:5000/api/Seguros/Actualizar?id=${editSeguroId}&nombre=${encodeURIComponent(nombre.trim())}&porcentaje=${encodeURIComponent(numPorcentaje)}`,
         {
           method: "PUT",
         }
@@ -122,11 +139,16 @@ const InsuranceManagement: React.FC = () => {
 
       const updated = await response.json();
       setSeguros((prev) =>
-        prev.map((seg) => (seg.id === editSeguroId ? { ...seg, ...updated, nombre } : seg))
+        prev.map((seg) =>
+          seg.id === editSeguroId
+            ? { ...seg, ...updated, nombre, porcentaje: numPorcentaje }
+            : seg
+        )
       );
 
       setEditSeguroId(null);
       setNombre("");
+      setPorcentaje(25);
       showAlert("success", "Seguro actualizado exitosamente");
       fetchSeguros();
     } catch (error) {
@@ -198,7 +220,7 @@ const InsuranceManagement: React.FC = () => {
                 onSubmit={editSeguroId !== null ? handleSaveEdit : handleAgregar}
                 className="mb-8"
               >
-                <div className="grid">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       Nombre del Seguro
@@ -208,11 +230,31 @@ const InsuranceManagement: React.FC = () => {
                       name="nombre"
                       value={nombre}
                       onChange={(e) => setNombre(e.target.value)}
-                      placeholder="Ej: Caja Nacional de Salud (CNS)"
+                      placeholder="Ej: BANCA, COSML, PANBOL..."
                       className="border rounded p-2 w-full"
                     />
                   </div>
-                  <div className="button-group flex gap-2 mt-4">
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Porcentaje de Cobertura / Ganancia (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="porcentaje"
+                      value={porcentaje}
+                      onChange={(e) => setPorcentaje(e.target.value)}
+                      placeholder="Ej: 25.00"
+                      className="border rounded p-2 w-full"
+                    />
+                    <span className="text-xs text-gray-500 mt-1 block">
+                      Porcentaje sobre el costo (precio_compra) para calcular el precio convenio.
+                    </span>
+                  </div>
+
+                  <div className="md:col-span-2 button-group flex gap-2 mt-2">
                     <button
                       style={{ background: "blue" }}
                       type="submit"
@@ -281,6 +323,9 @@ const InsuranceManagement: React.FC = () => {
                         Nombre del Seguro
                       </th>
                       <th style={{ background: "blue" }} className="p-3 text-left text-white">
+                        Porcentaje (%)
+                      </th>
+                      <th style={{ background: "blue" }} className="p-3 text-left text-white">
                         Estado
                       </th>
                       <th style={{ background: "blue" }} className="p-3 text-center text-white">
@@ -291,7 +336,7 @@ const InsuranceManagement: React.FC = () => {
                   <tbody>
                     {paginatedSeguros.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-4 text-center text-gray-500">
+                        <td colSpan={5} className="p-4 text-center text-gray-500">
                           No se encontraron seguros registrados
                         </td>
                       </tr>
@@ -299,7 +344,12 @@ const InsuranceManagement: React.FC = () => {
                       paginatedSeguros.map((seg) => (
                         <tr key={seg.id} className="border-b hover:bg-gray-50">
                           <td className="p-3 font-semibold">{seg.id}</td>
-                          <td className="p-3">{seg.nombre}</td>
+                          <td className="p-3 font-medium">{seg.nombre}</td>
+                          <td className="p-3">
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-bold rounded bg-blue-100 text-blue-800 border border-blue-200">
+                              {seg.porcentaje !== undefined ? `${Number(seg.porcentaje).toFixed(2)}%` : "0.00%"}
+                            </span>
+                          </td>
                           <td className="p-3">
                             <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800">
                               {seg.estado || "Activo"}

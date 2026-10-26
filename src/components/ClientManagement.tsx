@@ -26,6 +26,7 @@ interface Client {
 interface Seguro {
   id: number;
   nombre: string;
+  porcentaje?: number;
   estado?: string;
   eliminado?: boolean;
 }
@@ -51,6 +52,7 @@ const ClientManagement: React.FC = () => {
   // Estado para creación rápida de Seguro
   const [showQuickSeguro, setShowQuickSeguro] = useState<boolean>(false);
   const [quickSeguroNombre, setQuickSeguroNombre] = useState<string>("");
+  const [quickSeguroPorcentaje, setQuickSeguroPorcentaje] = useState<number | string>(25);
   const [isSubmittingQuickSeguro, setIsSubmittingQuickSeguro] = useState<boolean>(false);
 
   const [formData, setFormData] = useState<Client>({
@@ -114,10 +116,11 @@ const ClientManagement: React.FC = () => {
       showAlert("error", "Por favor ingrese el nombre del seguro.");
       return;
     }
+    const numPorcentaje = Number(quickSeguroPorcentaje) || 25;
     setIsSubmittingQuickSeguro(true);
     try {
       const response = await fetch(
-        `http://localhost:5000/api/Seguros/Crear?nombre=${encodeURIComponent(quickSeguroNombre.trim())}`,
+        `http://localhost:5000/api/Seguros/Crear?nombre=${encodeURIComponent(quickSeguroNombre.trim())}&porcentaje=${encodeURIComponent(numPorcentaje)}`,
         { method: "POST" }
       );
       if (!response.ok) {
@@ -128,8 +131,9 @@ const ClientManagement: React.FC = () => {
       setSeguros((prev) => [...prev, newSeg]);
       setNewIdSeguro(newSeg.id.toString());
       setQuickSeguroNombre("");
+      setQuickSeguroPorcentaje(25);
       setShowQuickSeguro(false);
-      showAlert("success", `Seguro "${newSeg.nombre}" creado y seleccionado`);
+      showAlert("success", `Seguro "${newSeg.nombre}" (${newSeg.porcentaje ?? numPorcentaje}%) creado y seleccionado`);
     } catch (error) {
       console.error("Error al crear seguro rápido:", error);
       showAlert("error", error instanceof Error ? error.message : "Error al crear seguro");
@@ -393,7 +397,7 @@ const ClientManagement: React.FC = () => {
                       <option value="">Particular (Sin Seguro)</option>
                       {seguros.map((seg) => (
                         <option key={seg.id} value={seg.id}>
-                          {seg.nombre}
+                          {seg.nombre} {seg.porcentaje !== undefined ? `(${Number(seg.porcentaje).toFixed(0)}%)` : ""}
                         </option>
                       ))}
                     </select>
@@ -503,7 +507,9 @@ const ClientManagement: React.FC = () => {
                             <td className="p-3">
                               {client.idseguro ? (
                                 <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-semibold border border-blue-200">
-                                  {seguroEncontrado ? seguroEncontrado.nombre : `Seguro #${client.idseguro}`}
+                                  {seguroEncontrado
+                                    ? `${seguroEncontrado.nombre}${seguroEncontrado.porcentaje !== undefined ? ` (${Number(seguroEncontrado.porcentaje).toFixed(0)}%)` : ""}`
+                                    : `Seguro #${client.idseguro}`}
                                 </span>
                               ) : (
                                 <span className="text-gray-400 text-xs italic">
@@ -589,11 +595,30 @@ const ClientManagement: React.FC = () => {
                   type="text"
                   value={quickSeguroNombre}
                   onChange={(e) => setQuickSeguroNombre(e.target.value)}
-                  placeholder="Ej. Caja Nacional de Salud (CNS)"
+                  placeholder="Ej. BANCA, COSML, PANBOL..."
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   autoFocus
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Porcentaje de Cobertura / Ganancia (%) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={quickSeguroPorcentaje}
+                  onChange={(e) => setQuickSeguroPorcentaje(e.target.value)}
+                  placeholder="Ej. 25.00"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  required
+                />
+                <span className="text-xs text-gray-500 mt-1 block">
+                  Porcentaje aplicado al costo del producto para convenio.
+                </span>
               </div>
 
               <div className="flex gap-2 justify-end pt-2">
